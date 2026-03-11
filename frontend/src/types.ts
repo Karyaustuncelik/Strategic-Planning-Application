@@ -1,6 +1,11 @@
 export type UserRole = 'Strategy Office' | 'Unit Manager' | 'Senior Management';
 
-export type GoalStatus = 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
+export type GoalStatus =
+  | 'On Track'
+  | 'At Risk'
+  | 'Delayed'
+  | 'Completed'
+  | 'Not Started';
 export type ActionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Blocked';
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type MilestoneStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Overdue';
@@ -65,6 +70,7 @@ export interface Assignment {
   id: string;
   entityType: 'Goal' | 'SubGoal' | 'KPI' | 'Action Plan';
   entityId: string;
+  academicYearStart?: number;
   assignedTo: string;
   assignedBy: string;
   unit: string;
@@ -121,4 +127,19 @@ export interface ProgressUpdate {
   user: string;
   note: string;
   progressPercentage: number;
+}
+
+export interface UnitOwner {
+  academicYearStart: number;
+  unitName: string;
+  ownerName: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface HierarchyNavigationFilter {
+  status?: GoalStatus | 'all';
+  level?: 0 | 1 | 2 | 'all';
+  department?: string;
+  goalName?: string;
 }

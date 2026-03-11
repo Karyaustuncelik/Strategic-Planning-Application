@@ -54,7 +54,13 @@
       outDir: 'build',
     },
     server: {
-      port: 3000,
-      open: true,
+      host: '0.0.0.0',
+      port: 8001,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:9001',
+          changeOrigin: true,
+        },
+      },
     },
   });

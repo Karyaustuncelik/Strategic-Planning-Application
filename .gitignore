@@ -75,6 +75,7 @@ storybook-static
 # Temporary folders
 tmp/
 temp/
+*.bak
 
 # OS generated files
 Thumbs.db
