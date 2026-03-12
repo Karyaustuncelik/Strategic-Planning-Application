@@ -44,7 +44,7 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: strategic-planning-db
+    container_name: spu-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-planning}
