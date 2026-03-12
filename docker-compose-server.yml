@@ -1,56 +1,58 @@
+
 services:
-db:
+  db:
     image: postgres:16-alpine
     container_name: spu-db
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-planning}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-planning_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-strategic_planning}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Named volume yerine dizin bazlı (Bind Mount) kullanım: 
+      # Bu sayede veriler direkt kullanıcının home dizininde kalır.
+      - ./postgres_data:/var/lib/postgresql/data:Z
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U planning -d strategic_planning"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-      
+      timeout: 3s
+      retries: 20
+    networks:
+      - spu-network
+
   backend:
-    image: ghcr.io/ahmetdemirellisu/strategic-planning-application/backend:latest
+    image: ghcr.io/ahmetdemirellisu/formapp/backend:latest
     container_name: spu-backend
     environment:
       NODE_ENV: production
       PORT: 9001
+      # İç ağda 'db' servis ismini kullanarak bağlanır
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET:-change-me-very-secret}
-      EMAIL_USER: ${EMAIL_USER:-}
-      EMAIL_PASS: ${EMAIL_PASS:-}
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USER: ${EMAIL_USER:-}
-      SMTP_PASS: ${EMAIL_PASS:-}
-      SMTP_FROM: "EDU HOTEL <${EMAIL_USER:-}>"
+      JWT_EXPIRES_IN: 1d
+      JWT_REFRESH_EXPIRES_IN: 7d
+      # Frontend'in dışarıdan erişildiği URL
+      CLIENT_URL: https://student-projects.sabanciuniv.edu/spu
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "9001:9001"
+      - "9001:9001" # Dışarıdan 9003, içeride 3000
     networks:
       - spu-network
 
   frontend:
-    image: ghcr.io/ahmetdemirellisu/strategic-planning-application/frontend:latest
-    container_name: spu-frontend
+    image: ghcr.io/ahmetdemirellisu/formapp/frontend:latest
+    container_name: studentform_frontend
+    environment:
+      # Frontend'in API'ye gitmesi gereken adres
+      REACT_APP_API_URL: https://student-projects.sabanciuniv.edu/spu-api
     depends_on:
       - backend
     ports:
-      - "8001:8001"
+      - "8001:8001" 
     networks:
       - spu-network
 
 networks:
-  spu-network:
+  aofr-network:
     driver: bridge
