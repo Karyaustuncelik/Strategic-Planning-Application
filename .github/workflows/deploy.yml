@@ -55,6 +55,7 @@ jobs:
           
           # Docker compose dosyasını taşı
           cp docker-compose-server.yml "$DEPLOY_DIR/"
+          cp docker-compose.yml "$DEPLOY_DIR/"
 
           # .env dosyasını oluştur (GITHUB_REPOSITORY artık küçük harf)
           cat <<EOF > "$DEPLOY_DIR/.env"
