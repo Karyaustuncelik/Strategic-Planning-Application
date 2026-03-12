@@ -1,4 +1,4 @@
-name: Deploy SPU Project
+name: Deploy Project
 
 on:
   push:
