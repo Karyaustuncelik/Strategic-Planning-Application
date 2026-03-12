@@ -4,7 +4,7 @@
   import path from 'path';
 
   export default defineConfig({
-    base: './spu',
+    base: './',
     plugins: [react()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
@@ -53,15 +53,5 @@
     build: {
       target: 'esnext',
       outDir: 'build',
-    },
-    server: {
-      host: '0.0.0.0',
-      port: 8001,
-      proxy: {
-        '/api': {
-          target: 'http://localhost:9001',
-          changeOrigin: true,
-        },
-      },
-    },
+    }
   });
