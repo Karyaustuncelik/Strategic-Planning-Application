@@ -22,8 +22,6 @@ services:
     environment:
       # Frontend'in API'ye gitmesi gereken adres
       REACT_APP_API_URL: https://student-projects.sabanciuniv.edu/spu-api
-    depends_on:
-      - backend
     ports:
       - "8001:80" 
     networks:
