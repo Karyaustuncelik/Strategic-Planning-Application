@@ -1,0 +1,79 @@
+name: Deploy SPU Project
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  REGISTRY: ghcr.io
+  TARGET_RUNNER: spu-runner 
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DEPLOY_TOKEN }}
+
+      - name: Build and Push Images
+        run: |
+          # Repo ismini küçük harfe çevir (GHCR zorunluluğu)
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          docker build -t ghcr.io/$REPO_LOWER/backend:latest ./backend
+          docker build -t ghcr.io/$REPO_LOWER/frontend:latest ./frontend
+          
+          docker push ghcr.io/$REPO_LOWER/backend:latest
+          docker push ghcr.io/$REPO_LOWER/frontend:latest
+
+  deploy:
+    needs: build-and-push
+    # Belirlediğimiz runner etiketini kullanıyoruz
+    runs-on: [self-hosted, production]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy with Podman
+        run: |
+          DEPLOY_DIR="$HOME/app"
+          mkdir -p "$DEPLOY_DIR/postgres_data"
+          
+          # Imaj isimleri için repo adını tekrar küçük harfe çeviriyoruz
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          # Docker compose dosyasını taşı
+          cp docker-compose-server.yml "$DEPLOY_DIR/"
+
+          # .env dosyasını oluştur (GITHUB_REPOSITORY artık küçük harf)
+          cat <<EOF > "$DEPLOY_DIR/.env"
+          PROJECT_NAME=${{ github.event.repository.name }}
+          GITHUB_REPOSITORY=$REPO_LOWER
+          FRONTEND_PORT=${{ secrets.FRONTEND_PORT }}
+          BACKEND_PORT=${{ secrets.BACKEND_PORT }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EMAIL_USER=user12
+          EMAIL_PASS=pass12
+          EOF
+
+          cd "$DEPLOY_DIR"
+          
+          # Podman login
+          echo "${{ secrets.DEPLOY_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          podman-compose down
+          podman-compose pull
+          podman-compose -f docker-compose-server.yml up -d --remove-orphans --force-recreate
