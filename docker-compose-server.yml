@@ -1,24 +1,5 @@
 
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: spu-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      # Named volume yerine dizin bazlı (Bind Mount) kullanım: 
-      # Bu sayede veriler direkt kullanıcının home dizininde kalır.
-      - ./postgres_data:/var/lib/postgresql/data:Z
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks:
-      - spu-network
-
   backend:
     image: ghcr.io/ahmetdemirellisu/strategic-planning-application/backend:latest
     container_name: spu-backend
@@ -32,9 +13,6 @@ services:
       JWT_REFRESH_EXPIRES_IN: 7d
       # Frontend'in dışarıdan erişildiği URL
       CLIENT_URL: https://student-projects.sabanciuniv.edu/spu
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
       - "9001:9001" # Dışarıdan 9003, içeride 3000
     networks:
