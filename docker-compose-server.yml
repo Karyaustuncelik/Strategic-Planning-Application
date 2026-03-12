@@ -4,8 +4,6 @@ services:
     image: ghcr.io/ahmetdemirellisu/strategic-planning-application/backend:latest
     container_name: spu-backend
     environment:
-      NODE_ENV: production
-      PORT: 9001
       # İç ağda 'db' servis ismini kullanarak bağlanır
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET:-change-me-very-secret}
@@ -20,7 +18,7 @@ services:
 
   frontend:
     image: ghcr.io/ahmetdemirellisu/strategic-planning-application/frontend:latest
-    container_name: studentform_frontend
+    container_name: spu_frontend
     environment:
       # Frontend'in API'ye gitmesi gereken adres
       REACT_APP_API_URL: https://student-projects.sabanciuniv.edu/spu-api
