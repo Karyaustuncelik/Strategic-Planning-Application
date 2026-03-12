@@ -20,7 +20,7 @@ services:
       - spu-network
 
   backend:
-    image: ghcr.io/ahmetdemirellisu/formapp/backend:latest
+    image: ghcr.io/ahmetdemirellisu/strategic-planning-application/backend:latest
     container_name: spu-backend
     environment:
       NODE_ENV: production
@@ -41,7 +41,7 @@ services:
       - spu-network
 
   frontend:
-    image: ghcr.io/ahmetdemirellisu/formapp/frontend:latest
+    image: ghcr.io/ahmetdemirellisu/strategic-planning-application/frontend:latest
     container_name: studentform_frontend
     environment:
       # Frontend'in API'ye gitmesi gereken adres
