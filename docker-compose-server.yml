@@ -1,54 +1,45 @@
-
 services:
   db:
     image: postgres:16-alpine
     container_name: spu-db
+    network_mode: host
+    command: postgres -p ${POSTGRES_PORT}
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: ${POSTGRES_PORT}
     volumes:
       - ./postgres_data:/var/lib/postgresql/data:Z
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:Z
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 20
-    networks:
-      - spu-network
-      
+
   backend:
     image: ghcr.io/ahmetdemirellisu/strategic-planning-application/backend:latest
     container_name: spu-backend
-    depends_on:
-      db:
-        condition: service_healthy
+    network_mode: host
+    command: sh -c "npx prisma migrate deploy && PORT=9001 npm run start"
     environment:
-      # İç ağda 'db' servis ismini kullanarak bağlanır
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      NODE_ENV: production
+      PORT: 9001
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET:-change-me-very-secret}
       JWT_EXPIRES_IN: 1d
       JWT_REFRESH_EXPIRES_IN: 7d
       # Frontend'in dışarıdan erişildiği URL
       CLIENT_URL: https://student-projects.sabanciuniv.edu/spu
-    ports:
-      - "9001:9001" # Dışarıdan 9003, içeride 3000
-    networks:
-      - spu-network
-      
-
-  frontend:
-    image: ghcr.io/ahmetdemirellisu/strategic-planning-application/frontend:latest
-    container_name: spu_frontend
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8001:80" 
-    networks:
-      - spu-network
 
-networks:
-  spu-network:
-    driver: bridge
+  frontend:
+    image: ghcr.io/ahmetdemirellisu/strategic-planning-application/frontend:latest
+    container_name: spu-frontend
+    network_mode: host 
+    environment:
+      REACT_APP_API_URL: https://student-projects.sabanciuniv.edu/spu/api
+    depends_on:
+      - backend
