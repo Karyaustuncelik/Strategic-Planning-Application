@@ -24,7 +24,7 @@ COPY --from=builder /app/build /usr/share/nginx/html/spu
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80
+# Expose port 8001
 EXPOSE 8001
 
 # Start nginx
