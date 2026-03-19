@@ -10,6 +10,8 @@ import {
   ListTodo,
 } from 'lucide-react';
 
+import { Phase1Checklist } from './Phase1Checklist';
+
 interface DashboardProps {
   userRole: UserRole;
   userUnit?: string;
@@ -203,6 +205,8 @@ export function Dashboard({
           {error}
         </div>
       )}
+
+      <Phase1Checklist />
 
       {isLoading ? (
         <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center">

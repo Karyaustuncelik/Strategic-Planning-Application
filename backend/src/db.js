@@ -1285,4 +1285,37 @@ export async function copyAcademicYearGoals(payload) {
   }
 }
 
+export async function deleteGoal(id) {
+  const client = ensurePool();
+  const dbClient = await client.connect();
+
+  try {
+    await dbClient.query('BEGIN');
+
+    // Delete related assignments
+    await dbClient.query(
+      "DELETE FROM assignments WHERE entity_type = 'Goal' AND entity_id = $1",
+      [id]
+    );
+
+    // Delete the goal itself
+    // Note: kpis, action_plans, and milestones have ON DELETE CASCADE in planningDb.js
+    const { rowCount } = await dbClient.query(
+      'DELETE FROM goals WHERE id = $1',
+      [id]
+    );
+
+    if (rowCount === 0) {
+      throw createHttpError(404, 'Goal not found');
+    }
+
+    await dbClient.query('COMMIT');
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
 export { pool };

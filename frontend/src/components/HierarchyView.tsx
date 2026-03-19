@@ -22,6 +22,7 @@ import {
   ArrowUpDown,
   Plus,
   Copy,
+  Trash2,
 } from 'lucide-react';
 import {
   formatAcademicYearRange,
@@ -37,6 +38,9 @@ import {
   fetchGoals,
   fetchKPIs,
   fetchUnitOwners,
+  deleteGoal,
+  deleteKPI,
+  deleteActionPlan,
 } from '../lib/api';
 
 interface HierarchyViewProps {
@@ -99,6 +103,7 @@ export function HierarchyView({
   const [goals, setGoals] = useState<Goal[]>([]);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [actions, setActions] = useState<ActionPlan[]>([]);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
   const [goalError, setGoalError] = useState<string | null>(null);
   const [isCreatingGoal, setIsCreatingGoal] = useState(false);
@@ -755,6 +760,64 @@ export function HierarchyView({
       setIsCopyingGoals(false);
     }
   };
+  const handleDeleteGoal = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete the goal: "${title}"? This will also delete all sub-goals, KPIs, and actions.`)) {
+      return;
+    }
+
+    setIsDeleting(id);
+    try {
+      await deleteGoal(id);
+      const goalData = await fetchGoals({ academicYearStart: selectedAcademicYearStart });
+      setGoals(goalData);
+      
+      // Also refresh KPIs and Actions if needed (cascading deletes on backend)
+      const [kpiData, actionData] = await Promise.all([
+        fetchKPIs({ academicYearStart: selectedAcademicYearStart }),
+        fetchActionPlans({ academicYearStart: selectedAcademicYearStart }),
+      ]);
+      setKpis(kpiData);
+      setActions(actionData);
+    } catch (err) {
+      setGoalError(err instanceof Error ? err.message : 'Failed to delete goal');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleDeleteKPI = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete the KPI: "${name}"?`)) {
+      return;
+    }
+
+    setIsDeleting(id);
+    try {
+      await deleteKPI(id);
+      const kpiData = await fetchKPIs({ academicYearStart: selectedAcademicYearStart });
+      setKpis(kpiData);
+    } catch (err) {
+      setGoalError(err instanceof Error ? err.message : 'Failed to delete KPI');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleDeleteActionPlan = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete the action: "${title}"?`)) {
+      return;
+    }
+
+    setIsDeleting(id);
+    try {
+      await deleteActionPlan(id);
+      const actionData = await fetchActionPlans({ academicYearStart: selectedAcademicYearStart });
+      setActions(actionData);
+    } catch (err) {
+      setGoalError(err instanceof Error ? err.message : 'Failed to delete action plan');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   const renderKpiTable = (subGoal: Goal) => {
     const items = kpis.filter(
@@ -774,6 +837,7 @@ export function HierarchyView({
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Status</th>
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Target</th>
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Owner</th>
+                <th className="px-4 py-2 text-right text-xs text-gray-700 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -790,11 +854,23 @@ export function HierarchyView({
                     {kpi.currentValue}/{kpi.targetValue} {kpi.unit}
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-600">{kpi.assignedTo || 'Unassigned'}</td>
+                  <td className="px-4 py-2 text-right text-xs">
+                    {!isReadOnly && (
+                      <button
+                        onClick={() => handleDeleteKPI(kpi.id, kpi.name)}
+                        className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete KPI"
+                        disabled={isDeleting === kpi.id}
+                      >
+                        <Trash2 className={`h-4 w-4 ${isDeleting === kpi.id ? 'animate-pulse' : ''}`} />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
                     No KPIs yet. Use "Add KPI" to create one.
                   </td>
                 </tr>
@@ -827,6 +903,7 @@ export function HierarchyView({
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Status</th>
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Priority</th>
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Owner</th>
+                <th className="px-4 py-2 text-right text-xs text-gray-700 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -845,11 +922,23 @@ export function HierarchyView({
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-600">{action.assignedTo || 'Unassigned'}</td>
+                  <td className="px-4 py-2 text-right text-xs">
+                    {!isReadOnly && (
+                      <button
+                        onClick={() => handleDeleteActionPlan(action.id, action.title)}
+                        className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete Action"
+                        disabled={isDeleting === action.id}
+                      >
+                        <Trash2 className={`h-4 w-4 ${isDeleting === action.id ? 'animate-pulse' : ''}`} />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
                     No actions yet. Use "Add Action" to create one.
                   </td>
                 </tr>
@@ -1178,6 +1267,16 @@ export function HierarchyView({
                       >
                         <Plus className="h-5 w-5" />
                       </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={() => handleDeleteGoal(goal.id, goal.title)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                          title="Delete Goal"
+                          disabled={isDeleting === goal.id}
+                        >
+                          <Trash2 className={`h-5 w-5 ${isDeleting === goal.id ? 'animate-pulse' : ''}`} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1286,6 +1385,16 @@ export function HierarchyView({
                                     <Plus className="h-4 w-4" />
                                     Action
                                   </button>
+                                  {!isReadOnly && (
+                                    <button
+                                      onClick={() => handleDeleteGoal(subGoal.id, subGoal.title)}
+                                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                                      title="Delete Sub Goal"
+                                      disabled={isDeleting === subGoal.id}
+                                    >
+                                      <Trash2 className={`h-5 w-5 ${isDeleting === subGoal.id ? 'animate-pulse' : ''}`} />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 

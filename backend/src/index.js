@@ -11,6 +11,7 @@ import {
   getUnitOwners,
   upsertUnitOwner,
   copyAcademicYearGoals,
+  deleteGoal,
   pool,
 } from './db.js';
 import {
@@ -25,6 +26,8 @@ import {
   createMilestone,
   addMilestoneProgressUpdate,
   addMilestoneEvidence,
+  deleteKPI,
+  deleteActionPlan,
 } from './planningDb.js';
 
 const app = express();
@@ -147,6 +150,15 @@ app.patch('/api/goals/:id', async (req, res) => {
     res.json(goal);
   } catch (err) {
     handleApiError(res, err, 'PATCH /api/goals/:id failed');
+  }
+});
+
+app.delete('/api/goals/:id', async (req, res) => {
+  try {
+    await deleteGoal(req.params.id);
+    res.sendStatus(204);
+  } catch (err) {
+    handleApiError(res, err, 'DELETE /api/goals/:id failed');
   }
 });
 
@@ -340,6 +352,24 @@ app.post('/api/milestones/:id/evidence', async (req, res) => {
     res.json(milestone);
   } catch (err) {
     handleApiError(res, err, 'POST /api/milestones/:id/evidence failed');
+  }
+});
+
+app.delete('/api/kpis/:id', async (req, res) => {
+  try {
+    await deleteKPI(req.params.id);
+    res.sendStatus(204);
+  } catch (err) {
+    handleApiError(res, err, 'DELETE /api/kpis/:id failed');
+  }
+});
+
+app.delete('/api/actions/:id', async (req, res) => {
+  try {
+    await deleteActionPlan(req.params.id);
+    res.sendStatus(204);
+  } catch (err) {
+    handleApiError(res, err, 'DELETE /api/actions/:id failed');
   }
 });
 

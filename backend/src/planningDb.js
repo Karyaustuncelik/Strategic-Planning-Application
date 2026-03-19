@@ -1286,3 +1286,68 @@ export async function addMilestoneEvidence(id, payload) {
     dbClient.release();
   }
 }
+
+export async function deleteKPI(id) {
+  const client = ensurePool();
+  const dbClient = await client.connect();
+
+  try {
+    await dbClient.query('BEGIN');
+
+    // Delete related assignments
+    await dbClient.query(
+      "DELETE FROM assignments WHERE entity_type = 'KPI' AND entity_id = $1",
+      [id]
+    );
+
+    // Delete the KPI itself
+    // Note: action_plans that reference this KPI will have kpi_id set to NULL due to ON DELETE SET NULL
+    const { rowCount } = await dbClient.query(
+      'DELETE FROM kpis WHERE id = $1',
+      [id]
+    );
+
+    if (rowCount === 0) {
+      throw createHttpError(404, 'KPI not found');
+    }
+
+    await dbClient.query('COMMIT');
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
+export async function deleteActionPlan(id) {
+  const client = ensurePool();
+  const dbClient = await client.connect();
+
+  try {
+    await dbClient.query('BEGIN');
+
+    // Delete related assignments
+    await dbClient.query(
+      "DELETE FROM assignments WHERE entity_type = 'Action Plan' AND entity_id = $1",
+      [id]
+    );
+
+    // Delete the action plan itself
+    const { rowCount } = await dbClient.query(
+      'DELETE FROM action_plans WHERE id = $1',
+      [id]
+    );
+
+    if (rowCount === 0) {
+      throw createHttpError(404, 'Action Plan not found');
+    }
+
+    await dbClient.query('COMMIT');
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
