@@ -7,8 +7,7 @@ import type {
   UnitOwner,
 } from '../types';
 
-const BASE_URL = (import.meta as any).env?.BASE_URL || '/';
-const API_PREFIX = `${BASE_URL}api`.replace(/\/+/g, '/');
+const API_PREFIX = '/spu/api';
 
 
 type ApiErrorPayload = {
