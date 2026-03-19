@@ -420,3 +420,21 @@ export function addMilestoneEvidence(
     body: JSON.stringify(payload),
   });
 }
+
+export function deleteGoal(goalId: string) {
+  return apiRequest<void>(`${API_PREFIX}/goals/${goalId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function deleteKPI(kpiId: string) {
+  return apiRequest<void>(`${API_PREFIX}/kpis/${kpiId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function deleteActionPlan(actionPlanId: string) {
+  return apiRequest<void>(`${API_PREFIX}/actions/${actionPlanId}`, {
+    method: 'DELETE',
+  });
+}
