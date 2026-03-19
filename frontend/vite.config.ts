@@ -6,6 +6,15 @@
   export default defineConfig({
     base: '/spu/',
     plugins: [react()],
+    server: {
+      proxy: {
+        '/spu/api': {
+          target: 'http://localhost:9001',
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/spu\/api/, '/api'),
+        },
+      },
+    },
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {

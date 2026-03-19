@@ -7,6 +7,10 @@ import type {
   UnitOwner,
 } from '../types';
 
+const BASE_URL = (import.meta as any).env?.BASE_URL || '/';
+const API_PREFIX = `${BASE_URL}api`.replace(/\/+/g, '/');
+
+
 type ApiErrorPayload = {
   error?: string;
   message?: string;
@@ -251,32 +255,32 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
 
 export function fetchGoals(filters: GoalFilters = {}) {
   return apiRequest<Goal[]>(
-    `/api/goals${buildQuery({
+    `${API_PREFIX}/goals${buildQuery({
       academicYearStart: filters.academicYearStart,
     })}`
   );
 }
 
 export function fetchGoalById(goalId: string) {
-  return apiRequest<Goal>(`/api/goals/${goalId}`);
+  return apiRequest<Goal>(`${API_PREFIX}/goals/${goalId}`);
 }
 
 export function copyAcademicYearGoals(payload: CopyAcademicYearGoalsPayload) {
-  return apiRequest<CopyAcademicYearGoalsResult>('/api/goals/copy-year', {
+  return apiRequest<CopyAcademicYearGoalsResult>(API_PREFIX + '/goals/copy-year', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function createGoal(payload: CreateGoalPayload) {
-  return apiRequest<Goal>('/api/goals', {
+  return apiRequest<Goal>(API_PREFIX + '/goals', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function updateGoal(goalId: string, payload: UpdateGoalPayload) {
-  return apiRequest<Goal>(`/api/goals/${goalId}`, {
+  return apiRequest<Goal>(`${API_PREFIX}/goals/${goalId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
@@ -284,7 +288,7 @@ export function updateGoal(goalId: string, payload: UpdateGoalPayload) {
 
 export function fetchAssignments(filters: AssignmentFilters = {}) {
   return apiRequest<Assignment[]>(
-    `/api/assignments${buildQuery({
+    `${API_PREFIX}/assignments${buildQuery({
       academicYearStart: filters.academicYearStart,
       status: filters.status && filters.status !== 'all' ? filters.status : undefined,
       entityType:
@@ -298,7 +302,7 @@ export function fetchAssignments(filters: AssignmentFilters = {}) {
 }
 
 export function createAssignment(payload: CreateAssignmentPayload) {
-  return apiRequest<Assignment>('/api/assignments', {
+  return apiRequest<Assignment>(API_PREFIX + '/assignments', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -306,14 +310,14 @@ export function createAssignment(payload: CreateAssignmentPayload) {
 
 export function fetchUnitOwners(filters: UnitOwnerFilters = {}) {
   return apiRequest<UnitOwner[]>(
-    `/api/unit-owners${buildQuery({
+    `${API_PREFIX}/unit-owners${buildQuery({
       academicYearStart: filters.academicYearStart,
     })}`
   );
 }
 
 export function upsertUnitOwner(payload: UpsertUnitOwnerPayload) {
-  return apiRequest<UnitOwner>('/api/unit-owners', {
+  return apiRequest<UnitOwner>(API_PREFIX + '/unit-owners', {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -323,7 +327,7 @@ export function updateAssignmentStatus(
   assignmentId: string,
   status: Assignment['status']
 ) {
-  return apiRequest<Assignment>(`/api/assignments/${assignmentId}/status`, {
+  return apiRequest<Assignment>(`${API_PREFIX}/assignments/${assignmentId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
@@ -331,7 +335,7 @@ export function updateAssignmentStatus(
 
 export function fetchKPIs(filters: KpiFilters = {}) {
   return apiRequest<KPI[]>(
-    `/api/kpis${buildQuery({
+    `${API_PREFIX}/kpis${buildQuery({
       academicYearStart: filters.academicYearStart,
       goalId: filters.goalId,
       responsibleUnit: filters.responsibleUnit,
@@ -340,14 +344,14 @@ export function fetchKPIs(filters: KpiFilters = {}) {
 }
 
 export function createKPI(payload: CreateKpiPayload) {
-  return apiRequest<KPI>('/api/kpis', {
+  return apiRequest<KPI>(API_PREFIX + '/kpis', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function updateKPI(kpiId: string, payload: UpdateKpiPayload) {
-  return apiRequest<KPI>(`/api/kpis/${kpiId}`, {
+  return apiRequest<KPI>(`${API_PREFIX}/kpis/${kpiId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
@@ -355,7 +359,7 @@ export function updateKPI(kpiId: string, payload: UpdateKpiPayload) {
 
 export function fetchActionPlans(filters: ActionPlanFilters = {}) {
   return apiRequest<ActionPlan[]>(
-    `/api/actions${buildQuery({
+    `${API_PREFIX}/actions${buildQuery({
       academicYearStart: filters.academicYearStart,
       goalId: filters.goalId,
       responsibleUnit: filters.responsibleUnit,
@@ -364,7 +368,7 @@ export function fetchActionPlans(filters: ActionPlanFilters = {}) {
 }
 
 export function createActionPlan(payload: CreateActionPlanPayload) {
-  return apiRequest<ActionPlan>('/api/actions', {
+  return apiRequest<ActionPlan>(API_PREFIX + '/actions', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -374,7 +378,7 @@ export function updateActionPlan(
   actionPlanId: string,
   payload: UpdateActionPlanPayload
 ) {
-  return apiRequest<ActionPlan>(`/api/actions/${actionPlanId}`, {
+  return apiRequest<ActionPlan>(`${API_PREFIX}/actions/${actionPlanId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
@@ -382,7 +386,7 @@ export function updateActionPlan(
 
 export function fetchMilestones(filters: MilestoneFilters = {}) {
   return apiRequest<Milestone[]>(
-    `/api/milestones${buildQuery({
+    `${API_PREFIX}/milestones${buildQuery({
       academicYearStart: filters.academicYearStart,
       linkedId: filters.linkedId,
       owner: filters.owner,
@@ -392,7 +396,7 @@ export function fetchMilestones(filters: MilestoneFilters = {}) {
 }
 
 export function createMilestone(payload: CreateMilestonePayload) {
-  return apiRequest<Milestone>('/api/milestones', {
+  return apiRequest<Milestone>(API_PREFIX + '/milestones', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -402,7 +406,7 @@ export function addMilestoneProgressUpdate(
   milestoneId: string,
   payload: AddMilestoneProgressUpdatePayload
 ) {
-  return apiRequest<Milestone>(`/api/milestones/${milestoneId}/updates`, {
+  return apiRequest<Milestone>(`${API_PREFIX}/milestones/${milestoneId}/updates`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -412,7 +416,7 @@ export function addMilestoneEvidence(
   milestoneId: string,
   payload: AddMilestoneEvidencePayload
 ) {
-  return apiRequest<Milestone>(`/api/milestones/${milestoneId}/evidence`, {
+  return apiRequest<Milestone>(`${API_PREFIX}/milestones/${milestoneId}/evidence`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
