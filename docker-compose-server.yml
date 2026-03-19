@@ -40,5 +40,6 @@ services:
     network_mode: host
     extra_hosts:
       - "spu-backend:127.0.0.1"
+      - "backend:127.0.0.1"
     depends_on:
       - backend
