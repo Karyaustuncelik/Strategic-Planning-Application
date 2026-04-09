@@ -269,10 +269,7 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <Login
-        currentAcademicYearStart={currentYearStart}
-        onLogin={handleLogin}
-      />
+      <Login onLogin={handleLogin} />
     );
   }
 

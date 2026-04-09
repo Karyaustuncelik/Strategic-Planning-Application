@@ -5,13 +5,10 @@ import { useI18n } from '../i18n';
 import { AuthSession, LoginMode, ViewerAccount } from '../types';
 
 interface LoginProps {
-  currentAcademicYearStart: number;
   onLogin: (session: AuthSession) => void;
 }
 
-const ADMIN_PASSWORD_HINT = 'admin123';
-
-export function Login({ currentAcademicYearStart, onLogin }: LoginProps) {
+export function Login({ onLogin }: LoginProps) {
   const { t } = useI18n();
   const [activeMode, setActiveMode] = useState<LoginMode | null>(null);
   const [viewerAccounts, setViewerAccounts] = useState<ViewerAccount[]>([]);
@@ -33,7 +30,6 @@ export function Login({ currentAcademicYearStart, onLogin }: LoginProps) {
 
       try {
         const options = await fetchAuthOptions({
-          academicYearStart: currentAcademicYearStart,
         });
 
         if (!isMounted) return;
@@ -65,7 +61,7 @@ export function Login({ currentAcademicYearStart, onLogin }: LoginProps) {
     return () => {
       isMounted = false;
     };
-  }, [currentAcademicYearStart]);
+  }, []);
 
   const selectedViewer = useMemo(
     () => viewerAccounts.find((account) => account.id === selectedViewerId) ?? null,
@@ -131,16 +127,8 @@ export function Login({ currentAcademicYearStart, onLogin }: LoginProps) {
                 <Building2 className="h-4 w-4" />
                 {t('Strategic Planning Tracking System')}
               </div>
-              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900">
-                {t('Separate sign-in paths keep admin and team workflows clean.')}
-              </h1>
-              <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-                {t('The admin side handles planning, assignment, and management work.')}
-                {' '}
-                {t('Team members only see the items assigned to their own account.')}
-              </p>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -182,22 +170,6 @@ export function Login({ currentAcademicYearStart, onLogin }: LoginProps) {
                     {t('Assigned tasks, goals, timeline, and progress tracking.')}
                   </p>
                 </button>
-              </div>
-
-              <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50/90 p-5">
-                <p className="text-sm font-medium text-slate-900">{t('Demo credentials')}</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-blue-100 bg-white p-4 text-sm text-slate-600">
-                    <div className="font-medium text-slate-900">{t('Admin')}</div>
-                    <div className="mt-1">{t('Username')}: {adminUsername}</div>
-                    <div>{t('Password')}: {ADMIN_PASSWORD_HINT}</div>
-                  </div>
-                  <div className="rounded-2xl border border-blue-100 bg-white p-4 text-sm text-slate-600">
-                    <div className="font-medium text-slate-900">{t('Team members')}</div>
-                    <div className="mt-1">{t('Select a person from the list')}</div>
-                    <div>{t('Password')}: {viewerPasswordHint}</div>
-                  </div>
-                </div>
               </div>
             </div>
           </section>
