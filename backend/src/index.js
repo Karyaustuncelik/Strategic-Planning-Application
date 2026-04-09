@@ -9,6 +9,7 @@ import {
   createAssignment,
   updateAssignmentStatus,
   getUnitOwners,
+  getViewerDirectory,
   upsertUnitOwner,
   copyAcademicYearGoals,
   deleteGoal,
@@ -32,6 +33,15 @@ import {
 
 const app = express();
 const PORT = process.env.PORT || 9001;
+const ADMIN_LOGIN_USERNAME = String(
+  process.env.ADMIN_LOGIN_USERNAME || 'admin'
+).trim();
+const ADMIN_LOGIN_PASSWORD = String(
+  process.env.ADMIN_LOGIN_PASSWORD || 'admin123'
+).trim();
+const VIEWER_LOGIN_PASSWORD = String(
+  process.env.VIEWER_LOGIN_PASSWORD || 'viewer123'
+).trim();
 const allowedOrigins = String(process.env.CORS_ORIGIN || '*')
   .split(',')
   .map((origin) => origin.trim())
@@ -86,6 +96,10 @@ function handleApiError(res, err, fallbackMessage) {
   res.status(statusCode).json({ error: message });
 }
 
+function normalizeCredential(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'backend' });
 });
@@ -106,6 +120,96 @@ app.get('/api/health/db', async (_req, res) => {
       database: 'disconnected',
       message: err?.message,
     });
+  }
+});
+
+app.get('/api/auth/options', async (req, res) => {
+  try {
+    const academicYearStart = parseOptionalInt(
+      req.query.academicYearStart,
+      'academicYearStart'
+    );
+    const viewerAccounts = await getViewerDirectory(academicYearStart);
+
+    res.json({
+      adminUsername: ADMIN_LOGIN_USERNAME,
+      viewerPasswordHint: VIEWER_LOGIN_PASSWORD,
+      viewerAccounts,
+    });
+  } catch (err) {
+    handleApiError(res, err, 'GET /api/auth/options failed');
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const loginMode = String(req.body?.loginMode ?? '').trim();
+    const password = String(req.body?.password ?? '').trim();
+
+    if (loginMode !== 'admin' && loginMode !== 'viewer') {
+      return res.status(400).json({ error: 'loginMode must be admin or viewer' });
+    }
+
+    if (!password) {
+      return res.status(400).json({ error: 'password is required' });
+    }
+
+    if (loginMode === 'admin') {
+      const username = String(req.body?.username ?? '').trim();
+      if (
+        normalizeCredential(username) !== normalizeCredential(ADMIN_LOGIN_USERNAME) ||
+        password !== ADMIN_LOGIN_PASSWORD
+      ) {
+        return res.status(401).json({ error: 'Invalid admin credentials' });
+      }
+
+      return res.json({
+        id: 'admin',
+        name: 'Strategy Office Manager',
+        role: 'Strategy Office',
+        loginMode: 'admin',
+      });
+    }
+
+    const viewerId = String(req.body?.viewerId ?? '').trim();
+    if (!viewerId) {
+      return res.status(400).json({ error: 'viewerId is required' });
+    }
+
+    const viewerAccounts = await getViewerDirectory(null);
+    const normalizedViewerId = normalizeCredential(viewerId);
+    const matchedViewer = viewerAccounts.find((account) => {
+      const normalizedAccountId = normalizeCredential(account.id);
+      const normalizedAccountName = normalizeCredential(account.name);
+      const normalizedAccountLabel = normalizeCredential(
+        account.unit ? `${account.name} ${account.unit}` : account.name
+      );
+
+      return (
+        account.id === viewerId ||
+        normalizedAccountId === normalizedViewerId ||
+        normalizedAccountName === normalizedViewerId ||
+        normalizedAccountLabel === normalizedViewerId
+      );
+    });
+
+    if (!matchedViewer) {
+      return res.status(404).json({ error: 'Viewer account not found' });
+    }
+
+    // Viewer access is demo-oriented, so account selection is the primary check.
+    // We still expose the shared password in the UI, but we don't block access if
+    // the user types a different value.
+
+    return res.json({
+      id: matchedViewer.id,
+      name: matchedViewer.name,
+      role: 'Viewer',
+      unit: matchedViewer.unit,
+      loginMode: 'viewer',
+    });
+  } catch (err) {
+    handleApiError(res, err, 'POST /api/auth/login failed');
   }
 });
 

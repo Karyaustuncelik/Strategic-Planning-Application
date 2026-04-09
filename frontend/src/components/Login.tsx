@@ -1,95 +1,364 @@
-import { useState } from 'react';
-import { UserRole } from '../types';
-import { Building2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Building2, ShieldCheck, Users } from 'lucide-react';
+import { fetchAuthOptions, login } from '../lib/api';
+import { useI18n } from '../i18n';
+import { AuthSession, LoginMode, ViewerAccount } from '../types';
 
 interface LoginProps {
-  onLogin: (user: { name: string; role: UserRole; unit?: string }) => void;
+  currentAcademicYearStart: number;
+  onLogin: (session: AuthSession) => void;
 }
 
-export function Login({ onLogin }: LoginProps) {
-  const [selectedRole, setSelectedRole] = useState<UserRole>('Strategy Office');
-  const [selectedUnit, setSelectedUnit] = useState('Research Department');
+const ADMIN_PASSWORD_HINT = 'admin123';
 
-  const units = [
-    'Research Department',
-    'Academic Affairs',
-    'IT Department',
-    'External Relations',
-    'Facilities Management',
-    'Finance Department',
-    'Human Resources'
-  ];
+export function Login({ currentAcademicYearStart, onLogin }: LoginProps) {
+  const { t } = useI18n();
+  const [activeMode, setActiveMode] = useState<LoginMode | null>(null);
+  const [viewerAccounts, setViewerAccounts] = useState<ViewerAccount[]>([]);
+  const [viewerPasswordHint, setViewerPasswordHint] = useState('viewer123');
+  const [adminUsername, setAdminUsername] = useState('admin');
+  const [selectedViewerId, setSelectedViewerId] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [viewerPassword, setViewerPassword] = useState('');
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    const name = selectedRole === 'Strategy Office' 
-      ? 'Strategy Office Manager'
-      : selectedRole === 'Senior Management'
-      ? 'General Manager'
-      : `${selectedUnit} Manager`;
-    
-    onLogin({
-      name,
-      role: selectedRole,
-      unit: selectedRole === 'Unit Manager' ? selectedUnit : undefined
-    });
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOptions = async () => {
+      setIsLoadingAccounts(true);
+      setError(null);
+
+      try {
+        const options = await fetchAuthOptions({
+          academicYearStart: currentAcademicYearStart,
+        });
+
+        if (!isMounted) return;
+
+        setViewerAccounts(options.viewerAccounts);
+        setViewerPasswordHint(options.viewerPasswordHint || 'viewer123');
+        setAdminUsername(options.adminUsername || 'admin');
+        setSelectedViewerId((current) =>
+          current || options.viewerAccounts[0]?.id || ''
+        );
+      } catch (loadError) {
+        if (!isMounted) return;
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'Login options could not be loaded'
+        );
+        setViewerAccounts([]);
+      } finally {
+        if (isMounted) {
+          setIsLoadingAccounts(false);
+        }
+      }
+    };
+
+    loadOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentAcademicYearStart]);
+
+  const selectedViewer = useMemo(
+    () => viewerAccounts.find((account) => account.id === selectedViewerId) ?? null,
+    [selectedViewerId, viewerAccounts]
+  );
+
+  const resetErrors = () => setError(null);
+
+  const handleAdminSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const session = await login({
+        loginMode: 'admin',
+        username: adminUsername,
+        password: adminPassword,
+      });
+      onLogin(session);
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error ? loginError.message : 'Admin login failed'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleViewerSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedViewerId) {
+      setError('Please choose a team member account.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const session = await login({
+        loginMode: 'viewer',
+        viewerId: selectedViewerId,
+        password: viewerPassword,
+      });
+      onLogin(session);
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error ? loginError.message : 'Viewer login failed'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-blue-600 p-4 rounded-full mb-4">
-            <Building2 className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-center">Strategic Planning Tracking System</h1>
-          <p className="text-gray-600 text-center">Phase 1 Prototype</p>
-        </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(0,39,118,0.18),_transparent_35%),linear-gradient(135deg,_#f4f8fc_0%,_#ffffff_48%,_#e4ecf8_100%)] px-4 py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
+        <div className="grid w-full gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="rounded-[28px] border border-white/70 bg-white/85 p-8 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)] backdrop-blur">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-3 rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
+                <Building2 className="h-4 w-4" />
+                {t('Strategic Planning Tracking System')}
+              </div>
+              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900">
+                {t('Separate sign-in paths keep admin and team workflows clean.')}
+              </h1>
+              <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
+                {t('The admin side handles planning, assignment, and management work.')}
+                {' '}
+                {t('Team members only see the items assigned to their own account.')}
+              </p>
 
-        <div className="space-y-6">
-          <div>
-            <label className="block text-gray-700 mb-2">
-              Select Role
-            </label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="Strategy Office">Strategy Office</option>
-              <option value="Unit Manager">Unit Manager</option>
-              <option value="Senior Management">Senior Management</option>
-            </select>
-          </div>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetErrors();
+                    setActiveMode('admin');
+                  }}
+                  className={`rounded-3xl border p-5 text-left transition-all ${
+                    activeMode === 'admin'
+                      ? 'border-blue-300 bg-blue-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <ShieldCheck className="h-8 w-8 text-blue-600" />
+                  <h2 className="mt-4 text-lg font-semibold text-slate-900">
+                    {t('Admin Login')}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t('Goal creation, task assignment, analytics, and calendar settings.')}
+                  </p>
+                </button>
 
-          {selectedRole === 'Unit Manager' && (
-            <div>
-              <label className="block text-gray-700 mb-2">
-                Select Unit
-              </label>
-              <select
-                value={selectedUnit}
-                onChange={(e) => setSelectedUnit(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {units.map((unit) => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetErrors();
+                    setActiveMode('viewer');
+                  }}
+                  className={`rounded-3xl border p-5 text-left transition-all ${
+                    activeMode === 'viewer'
+                      ? 'border-blue-300 bg-blue-50 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users className="h-8 w-8 text-blue-600" />
+                  <h2 className="mt-4 text-lg font-semibold text-slate-900">
+                    {t('Team Member Login')}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t('Assigned tasks, goals, timeline, and progress tracking.')}
+                  </p>
+                </button>
+              </div>
+
+              <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50/90 p-5">
+                <p className="text-sm font-medium text-slate-900">{t('Demo credentials')}</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-blue-100 bg-white p-4 text-sm text-slate-600">
+                    <div className="font-medium text-slate-900">{t('Admin')}</div>
+                    <div className="mt-1">{t('Username')}: {adminUsername}</div>
+                    <div>{t('Password')}: {ADMIN_PASSWORD_HINT}</div>
+                  </div>
+                  <div className="rounded-2xl border border-blue-100 bg-white p-4 text-sm text-slate-600">
+                    <div className="font-medium text-slate-900">{t('Team members')}</div>
+                    <div className="mt-1">{t('Select a person from the list')}</div>
+                    <div>{t('Password')}: {viewerPasswordHint}</div>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+          </section>
 
-          <button
-            onClick={handleLogin}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Login to System
-          </button>
+          <aside className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)]">
+            {!activeMode && (
+              <div className="flex h-full flex-col justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 p-8 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                  <Building2 className="h-6 w-6" />
+                </div>
+                <h2 className="mt-5 text-xl font-semibold text-slate-900">
+                  {t('Choose a sign-in type')}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {t(
+                    'The form on the right updates based on whether you choose admin or team member access.'
+                  )}
+                </p>
+              </div>
+            )}
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-900 text-sm">
-              <span>Demo Mode:</span> This Phase 1 prototype uses synthetic data for testing and demonstration purposes.
-            </p>
-          </div>
+            {activeMode === 'admin' && (
+              <form onSubmit={handleAdminSubmit} className="flex h-full flex-col">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetErrors();
+                    setActiveMode(null);
+                  }}
+                  className="inline-flex items-center gap-2 self-start rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  {t('Back')}
+                </button>
+
+                <h2 className="mt-6 text-2xl font-semibold text-slate-900">
+                  {t('Admin Login')}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {t('This sign-in opens the full management workspace.')}
+                </p>
+
+                <label className="mt-6 text-sm font-medium text-slate-700">
+                  {t('Username')}
+                </label>
+                <input
+                  type="text"
+                  value={adminUsername}
+                  onChange={(event) => setAdminUsername(event.target.value)}
+                  className="mt-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  placeholder="admin"
+                  required
+                />
+
+                <label className="mt-4 text-sm font-medium text-slate-700">
+                  {t('Password')}
+                </label>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(event) => setAdminPassword(event.target.value)}
+                  className="mt-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  placeholder="admin123"
+                  required
+                />
+
+                {error && (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {t(error)}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="mt-auto rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                >
+                  {isSubmitting ? t('Signing in...') : t('Login as Admin')}
+                </button>
+              </form>
+            )}
+
+            {activeMode === 'viewer' && (
+              <form onSubmit={handleViewerSubmit} className="flex h-full flex-col">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetErrors();
+                    setActiveMode(null);
+                  }}
+                  className="inline-flex items-center gap-2 self-start rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  {t('Back')}
+                </button>
+
+                <h2 className="mt-6 text-2xl font-semibold text-slate-900">
+                  {t('Team Member Login')}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {t('Only the pages and tasks assigned to this person are shown.')}
+                </p>
+
+                <label className="mt-6 text-sm font-medium text-slate-700">
+                  {t('Team member')}
+                </label>
+                <select
+                  value={selectedViewerId}
+                  onChange={(event) => setSelectedViewerId(event.target.value)}
+                  disabled={isLoadingAccounts || viewerAccounts.length === 0}
+                  className="mt-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400"
+                  required
+                >
+                  <option value="">{t('Select a team member')}</option>
+                  {viewerAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                      {account.unit ? ` - ${account.unit}` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedViewer && (
+                  <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                    <div className="font-medium">{selectedViewer.name}</div>
+                    <div className="mt-1">
+                      {selectedViewer.unit || t('No unit information')}
+                    </div>
+                  </div>
+                )}
+
+                <label className="mt-4 text-sm font-medium text-slate-700">
+                  {t('Password')}
+                </label>
+                <input
+                  type="password"
+                  value={viewerPassword}
+                  onChange={(event) => setViewerPassword(event.target.value)}
+                  className="mt-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  placeholder={viewerPasswordHint}
+                  required
+                />
+
+                {error && (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {t(error)}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmitting || isLoadingAccounts || viewerAccounts.length === 0
+                  }
+                  className="mt-auto rounded-2xl bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                >
+                  {isSubmitting ? t('Signing in...') : t('Login as Team Member')}
+                </button>
+              </form>
+            )}
+          </aside>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Assignment, Goal, UserRole } from '../types';
+import { Assignment, Goal, UserRole, ViewerAccount } from '../types';
 import {
   Plus,
   CheckCircle,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   createAssignment,
+  fetchAuthOptions,
   fetchAssignments,
   fetchGoals,
   updateAssignmentStatus,
@@ -21,6 +22,7 @@ import {
   formatDateString,
   getAcademicYearDateRange,
 } from '../utils/academicPeriod';
+import { isAdminRole, isViewerRole } from '../lib/access';
 
 interface AssignmentManagementProps {
   userRole: UserRole;
@@ -89,6 +91,9 @@ export function AssignmentManagement({
   const [draft, setDraft] = useState<AssignmentDraft>(
     buildDraft(selectedAcademicYearStart)
   );
+  const [viewerAccounts, setViewerAccounts] = useState<ViewerAccount[]>([]);
+  const isAdmin = isAdminRole(userRole);
+  const isViewer = isViewerRole(userRole);
 
   useEffect(() => {
     let isMounted = true;
@@ -99,7 +104,12 @@ export function AssignmentManagement({
 
       try {
         const assignmentFilters =
-          userRole === 'Unit Manager' && userUnit
+          isViewer
+            ? {
+                academicYearStart: selectedAcademicYearStart,
+                assignedTo: userName,
+              }
+            : userRole === 'Unit Manager' && userUnit
             ? {
                 academicYearStart: selectedAcademicYearStart,
                 unit: userUnit,
@@ -108,15 +118,17 @@ export function AssignmentManagement({
                 academicYearStart: selectedAcademicYearStart,
               };
 
-        const [assignmentData, goalData] = await Promise.all([
+        const [assignmentData, goalData, authOptions] = await Promise.all([
           fetchAssignments(assignmentFilters),
           fetchGoals({ academicYearStart: selectedAcademicYearStart }),
+          fetchAuthOptions({ academicYearStart: selectedAcademicYearStart }),
         ]);
 
         if (!isMounted) return;
 
         setAssignments(sortAssignments(assignmentData));
         setGoals(goalData);
+        setViewerAccounts(authOptions.viewerAccounts);
       } catch (loadError) {
         if (!isMounted) return;
 
@@ -127,6 +139,7 @@ export function AssignmentManagement({
         );
         setAssignments([]);
         setGoals([]);
+        setViewerAccounts([]);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -139,7 +152,13 @@ export function AssignmentManagement({
     return () => {
       isMounted = false;
     };
-  }, [selectedAcademicYearStart, userRole, userUnit]);
+  }, [
+    isViewer,
+    selectedAcademicYearStart,
+    userName,
+    userRole,
+    userUnit,
+  ]);
 
   useEffect(() => {
     setShowCreateModal(false);
@@ -408,10 +427,14 @@ export function AssignmentManagement({
 
       <div className="flex items-center justify-between">
         <div>
-          <h2>Assignment Management</h2>
-          <p className="text-gray-600">Goal ownership and follow-up assignments</p>
+          <h2>{isViewer ? 'My Task Board' : 'Assignment Management'}</h2>
+          <p className="text-gray-600">
+            {isViewer
+              ? 'Only tasks assigned to your account are listed here'
+              : 'Goal ownership and follow-up assignments'}
+          </p>
         </div>
-        {userRole === 'Strategy Office' && (
+        {isAdmin && (
           <button
             onClick={openCreateModal}
             disabled={isReadOnly || goals.length === 0}
@@ -427,7 +450,7 @@ export function AssignmentManagement({
         )}
       </div>
 
-      {userRole === 'Strategy Office' && goals.length === 0 && !isLoading && (
+      {isAdmin && goals.length === 0 && !isLoading && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
           No goals exist for {formatAcademicYearRange(selectedAcademicYearStart)}.
           Create a goal first before assigning it.
@@ -611,8 +634,7 @@ export function AssignmentManagement({
             const isOverdue =
               new Date(assignment.deadline) < new Date() &&
               assignment.status !== 'Completed';
-            const canManage =
-              assignment.assignedTo === userName || userRole === 'Strategy Office';
+            const canManage = assignment.assignedTo === userName || isAdmin;
             const isUpdating = updatingAssignmentId === assignment.id;
 
             return (
@@ -764,10 +786,14 @@ export function AssignmentManagement({
               <span>About Assignment Management:</span>
             </p>
             <ul className="text-sm text-blue-900 space-y-1">
-              <li>• Strategy Office can create and manage all goal assignments</li>
-              <li>• Unit Managers only see assignments for their own unit</li>
+              {isAdmin ? (
+                <li>• Strategy Office can create and manage all goal assignments</li>
+              ) : (
+                <li>• Only tasks assigned to your login are shown here</li>
+              )}
               <li>• Assignees can accept, reject, or complete their assignments</li>
               <li>• Goal titles now come from the backend for the selected year</li>
+              <li>• New assignments immediately update backend goal ownership</li>
             </ul>
           </div>
         </div>
@@ -846,10 +872,25 @@ export function AssignmentManagement({
                         assignedTo: event.target.value,
                       }))
                     }
+                    list="assignment-assignee-options"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     placeholder="Full name"
                     required
                   />
+                  <datalist id="assignment-assignee-options">
+                    {viewerAccounts.map((account) => (
+                      <option
+                        key={account.id}
+                        value={account.name}
+                        label={account.unit || account.name}
+                      />
+                    ))}
+                  </datalist>
+                  {viewerAccounts.length > 0 && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Suggested assignees come from the current backend viewer list.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-700 mb-2">

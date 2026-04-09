@@ -1,4 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  BarChart3,
+  Calendar,
+  Flag,
+  LayoutDashboard,
+  ListChecks,
+  ListTree,
+  LogOut,
+  Menu,
+  Settings2,
+  Target,
+} from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { HierarchyView } from './components/HierarchyView';
 import { GoalDetail } from './components/GoalDetail';
@@ -8,6 +20,7 @@ import { TimelineView } from './components/TimelineView';
 import { MyAssignedGoals } from './components/MyAssignedGoals';
 import { MilestoneManagement } from './components/MilestoneManagement';
 import { AcademicCalendarEditor } from './components/AcademicCalendarEditor';
+import { Login } from './components/Login';
 import {
   Select,
   SelectContent,
@@ -15,22 +28,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from './components/ui/select';
-import { HierarchyNavigationFilter, UserRole } from './types';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from './components/ui/sheet';
+import { HierarchyNavigationFilter, AuthSession } from './types';
 import { useI18n } from './i18n';
 import {
   formatAcademicYearRange,
   getCurrentAcademicYearStart,
   parseAcademicYearRange,
 } from './utils/academicPeriod';
-import {
-  Target,
-  ListTree,
-  BarChart3,
-  Calendar,
-  Users,
-  UserCheck,
-  Flag,
-} from 'lucide-react';
+import { isAdminRole, isViewerRole } from './lib/access';
 
 type AppView =
   | 'dashboard'
@@ -43,38 +56,82 @@ type AppView =
   | 'milestones'
   | 'calendarSettings';
 
+interface NavigationItem {
+  id: Exclude<AppView, 'detail'>;
+  label: string;
+  icon: typeof LayoutDashboard;
+}
+
+const SESSION_STORAGE_KEY = 'spa-auth-session';
+
+function readStoredSession() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    return rawSession ? (JSON.parse(rawSession) as AuthSession) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const { language, toggleLanguage } = useI18n();
-  const [currentUser] = useState<{
-    name: string;
-    role: UserRole;
-    unit?: string;
-  }>({
-    name: 'Strategy Office Manager',
-    role: 'Strategy Office',
-  });
+  const { language, toggleLanguage, t } = useI18n();
+  const [currentUser, setCurrentUser] = useState<AuthSession | null>(
+    readStoredSession
+  );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(() =>
+    typeof window === 'undefined' ? false : window.innerWidth < 760
+  );
 
   const currentYearStart = getCurrentAcademicYearStart();
+  const previousYearRange = formatAcademicYearRange(currentYearStart - 1);
   const currentYearRange = formatAcademicYearRange(currentYearStart);
   const nextYearRange = formatAcademicYearRange(currentYearStart + 1);
 
   const [academicYearOptions, setAcademicYearOptions] = useState<string[]>([
+    previousYearRange,
     currentYearRange,
     nextYearRange,
   ]);
   const [selectedAcademicYearRange, setSelectedAcademicYearRange] =
     useState<string>(currentYearRange);
-
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
   const [previousView, setPreviousView] = useState<AppView>('dashboard');
-
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [hierarchyNavigationFilter, setHierarchyNavigationFilter] =
     useState<HierarchyNavigationFilter | null>(null);
+
   const selectedAcademicYearStart = parseAcademicYearRange(
     selectedAcademicYearRange
   );
   const isReadOnly = selectedAcademicYearStart < currentYearStart;
+  const isViewer = currentUser ? isViewerRole(currentUser.role) : false;
+
+  useEffect(() => {
+    if (currentUser) {
+      window.localStorage.setItem(
+        SESSION_STORAGE_KEY,
+        JSON.stringify(currentUser)
+      );
+      return;
+    }
+
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      setIsCompactLayout(window.innerWidth < 760);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (
@@ -88,15 +145,40 @@ export default function App() {
     }
   }, [academicYearOptions, currentYearRange, selectedAcademicYearRange]);
 
-  const handleViewGoalDetail = (goalId: string) => {
-    setSelectedGoalId(goalId);
-    setCurrentView('detail');
-  };
+  const navigationItems = useMemo<NavigationItem[]>(() => {
+    if (!currentUser) return [];
 
-  const handleOpenHierarchy = (filters: HierarchyNavigationFilter | null = null) => {
-    setHierarchyNavigationFilter(filters);
-    setCurrentView('hierarchy');
-  };
+    if (isViewerRole(currentUser.role)) {
+      return [
+        { id: 'dashboard', label: t('My Workspace'), icon: LayoutDashboard },
+        { id: 'assignments', label: t('My Tasks'), icon: ListChecks },
+        { id: 'myGoals', label: t('My Goals'), icon: Target },
+        { id: 'milestones', label: t('Milestones'), icon: Flag },
+        { id: 'timeline', label: t('Timeline'), icon: Calendar },
+      ];
+    }
+
+    return [
+      { id: 'dashboard', label: t('Dashboard'), icon: LayoutDashboard },
+      { id: 'hierarchy', label: t('Goal Hierarchy'), icon: ListTree },
+      { id: 'myGoals', label: t('My Assigned Goals'), icon: Target },
+      { id: 'assignments', label: t('Assignments'), icon: ListChecks },
+      { id: 'milestones', label: t('Milestones'), icon: Flag },
+      { id: 'analytics', label: t('Analytics'), icon: BarChart3 },
+      { id: 'timeline', label: t('Timeline'), icon: Calendar },
+      { id: 'calendarSettings', label: t('Academic Calendar'), icon: Settings2 },
+    ];
+  }, [currentUser, t]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (currentView === 'detail') return;
+
+    const availableViews = new Set(navigationItems.map((item) => item.id));
+    if (availableViews.has(currentView)) return;
+
+    setCurrentView(navigationItems[0]?.id ?? 'dashboard');
+  }, [currentUser, currentView, navigationItems]);
 
   const sortAcademicYears = (years: string[]) =>
     [...years].sort(
@@ -117,131 +199,176 @@ export default function App() {
     });
   };
 
-  const handleOpenCalendarEditor = () => {
+  const handleViewGoalDetail = (goalId: string) => {
     setPreviousView(currentView);
-    setCurrentView('calendarSettings');
+    setSelectedGoalId(goalId);
+    setCurrentView('detail');
   };
 
+  const handleOpenHierarchy = (
+    filters: HierarchyNavigationFilter | null = null
+  ) => {
+    if (!currentUser || isViewerRole(currentUser.role)) return;
+    setHierarchyNavigationFilter(filters);
+    setCurrentView('hierarchy');
+  };
+
+  const handleChangeView = (view: Exclude<AppView, 'detail'>) => {
+    setMobileMenuOpen(false);
+    if (view === 'calendarSettings') {
+      setPreviousView(currentView);
+    }
+    setCurrentView(view);
+  };
+
+  const handleLogin = (session: AuthSession) => {
+    setCurrentUser(session);
+    setSelectedGoalId(null);
+    setHierarchyNavigationFilter(null);
+    setPreviousView('dashboard');
+    setCurrentView('dashboard');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setSelectedGoalId(null);
+    setHierarchyNavigationFilter(null);
+    setCurrentView('dashboard');
+    setPreviousView('dashboard');
+  };
+
+  const renderNavigation = (mobile = false) => (
+    <div className={`space-y-1.5 ${mobile ? '' : ''}`}>
+      <div className="space-y-1.5">
+        {navigationItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentView === item.id;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleChangeView(item.id)}
+              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
+                isActive
+                  ? 'border-blue-200 bg-blue-50/90 text-blue-800 shadow-sm shadow-blue-100/70'
+                  : 'border-transparent bg-transparent text-slate-700 hover:border-blue-100 hover:bg-blue-50/50'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="text-sm font-medium">{item.label}</span>
+              {isActive && (
+                <span className="ml-auto h-2.5 w-2.5 rounded-full bg-blue-600" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if (!currentUser) {
+    return (
+      <Login
+        currentAcademicYearStart={currentYearStart}
+        onLogin={handleLogin}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <>
-        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
-          <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <div className={`min-h-screen bg-[#f4f8fc] ${isCompactLayout ? '' : 'flex'}`}>
+      <aside
+        className={
+          isCompactLayout
+            ? 'hidden'
+            : 'flex w-72 flex-col border-r border-[#d7e3f2] bg-[#f7fafd]'
+        }
+      >
+        <div className="flex h-full flex-col px-4 py-5">
+          <div className="flex-1">
+            {renderNavigation()}
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-4">
             <button
               type="button"
-              onClick={toggleLanguage}
-              data-i18n-skip="true"
-              aria-label={
-                language === 'tr'
-                  ? 'Switch language to English'
-                  : 'Dili Türkçeye çevir'
-              }
-              className="inline-flex min-w-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-slate-700 transition-colors hover:bg-slate-100"
+              onClick={handleLogout}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
             >
-              {language === 'tr' ? 'EN' : 'TR'}
+              <LogOut className="h-4 w-4" />
+              {t('Logout')}
             </button>
+          </div>
+        </div>
+      </aside>
 
-            <nav className="min-w-0 flex-1 overflow-x-auto py-1 lg:overflow-visible">
-              <div className="flex items-center gap-2 pr-3">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <section className="mx-auto min-w-0 max-w-7xl">
+            <div
+              className={`mb-6 flex flex-wrap items-center gap-3 ${
+                isCompactLayout ? 'justify-between' : 'justify-end'
+              }`}
+            >
+              {isCompactLayout && (
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white text-[#15345c] transition-colors hover:bg-blue-50"
+                    >
+                      <Menu className="h-4 w-4" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[88vw] max-w-sm border-r border-[#d7e3f2] bg-[#f7fafd] p-0">
+                    <SheetHeader className="border-b border-[#d7e3f2] bg-white">
+                      <SheetTitle>{t('Navigation')}</SheetTitle>
+                      <SheetDescription>
+                        {isViewer
+                          ? t('Only your personal work areas are visible.')
+                          : t('Admin pages and planning tools are available here.')}
+                      </SheetDescription>
+                    </SheetHeader>
+                    <div className="flex h-full flex-col p-4">
+                      <div className="flex-1">{renderNavigation(true)}</div>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {t('Logout')}
+                      </button>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              )}
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
               <button
-                onClick={() => setCurrentView('dashboard')}
-                className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                  currentView === 'dashboard'
-                    ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                    : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                }`}
+                type="button"
+                onClick={toggleLanguage}
+                data-i18n-skip="true"
+                aria-label={
+                  language === 'tr'
+                    ? t('Switch language to English')
+                    : t('Switch language to Turkish')
+                }
+                className="inline-flex h-10 min-w-11 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white px-3 text-xs font-semibold tracking-wide text-[#15345c] transition-colors hover:bg-blue-50"
               >
-                <Target className="w-4 h-4" />
-                Dashboard
+                {language === 'tr' ? 'EN' : 'TR'}
               </button>
 
-                <button
-                  onClick={() => handleOpenHierarchy()}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    currentView === 'hierarchy'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <ListTree className="w-4 h-4" />
-                  Goal Hierarchy
-                </button>
-
-                <button
-                  onClick={() => setCurrentView('myGoals')}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    currentView === 'myGoals'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <UserCheck className="w-4 h-4" />
-                  My Assigned Goals
-                </button>
-
-                <button
-                  onClick={() => setCurrentView('analytics')}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    currentView === 'analytics'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Analytics
-                </button>
-
-                <button
-                  onClick={() => setCurrentView('assignments')}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    currentView === 'assignments'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  Assignments
-                </button>
-
-                <button
-                  onClick={() => setCurrentView('milestones')}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    currentView === 'milestones'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <Flag className="w-4 h-4" />
-                  Milestones
-                </button>
-
-                <button
-                  onClick={() => setCurrentView('timeline')}
-                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                    currentView === 'timeline'
-                      ? 'border-blue-200 bg-blue-50 text-blue-700 shadow-sm'
-                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  Timeline
-                </button>
-              </div>
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <span className="hidden text-xs font-medium uppercase tracking-wide text-slate-500 lg:inline">
-                Academic Year
-              </span>
-              <div className="min-w-[148px] flex-shrink-0">
+              <div className="min-w-[170px]">
                 <Select
                   value={selectedAcademicYearRange}
                   onValueChange={setSelectedAcademicYearRange}
                 >
-                  <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-white text-sm text-slate-700 shadow-none">
-                    <SelectValue placeholder="Academic Year" />
+                  <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none">
+                    <SelectValue placeholder={t('Academic Year')} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-[#d7e3f2] bg-white shadow-[0_20px_40px_-24px_rgba(0,39,118,0.35)]">
                     {academicYearOptions.map((year) => (
                       <SelectItem key={year} value={year}>
                         {year}
@@ -250,33 +377,37 @@ export default function App() {
                   </SelectContent>
                 </Select>
               </div>
-              <button
-                onClick={handleOpenCalendarEditor}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                Edit
-              </button>
+
               {isReadOnly && (
-                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-700">
-                  View Only
+                <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-medium text-amber-700">
+                  {t('View Only')}
                 </span>
               )}
-            </div>
-          </div>
-        </header>
 
-          {/* Main Content */}
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {isCompactLayout && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d7e3f2] px-4 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {t('Logout')}
+                </button>
+              )}
+              </div>
+            </div>
+
             {currentView === 'dashboard' && (
               <Dashboard
                 userRole={currentUser.role}
+                userName={currentUser.name}
                 userUnit={currentUser.unit}
                 selectedAcademicYearStart={selectedAcademicYearStart}
                 onOpenHierarchy={() => handleOpenHierarchy()}
               />
             )}
 
-            {currentView === 'hierarchy' && (
+            {currentView === 'hierarchy' && !isViewer && (
               <HierarchyView
                 userRole={currentUser.role}
                 userUnit={currentUser.unit}
@@ -300,12 +431,12 @@ export default function App() {
                 goalId={selectedGoalId}
                 userRole={currentUser.role}
                 userUnit={currentUser.unit}
-                onBack={() => setCurrentView('hierarchy')}
+                onBack={() => setCurrentView(previousView)}
                 isReadOnly={isReadOnly}
               />
             )}
 
-            {currentView === 'analytics' && (
+            {currentView === 'analytics' && !isViewer && (
               <AnalyticsView
                 userRole={currentUser.role}
                 userUnit={currentUser.unit}
@@ -346,7 +477,7 @@ export default function App() {
               />
             )}
 
-            {currentView === 'calendarSettings' && (
+            {currentView === 'calendarSettings' && !isViewer && (
               <AcademicCalendarEditor
                 academicYears={academicYearOptions}
                 selectedYearRange={selectedAcademicYearRange}
@@ -357,8 +488,9 @@ export default function App() {
                 onBack={() => setCurrentView(previousView)}
               />
             )}
-          </main>
-      </>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

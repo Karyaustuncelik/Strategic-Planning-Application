@@ -3,6 +3,7 @@ import { ActionPlan, Goal, UserRole } from '../types';
 import { fetchActionPlans, fetchGoals } from '../lib/api';
 import { Calendar, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { formatAcademicYearRange } from '../utils/academicPeriod';
+import { isViewerRole } from '../lib/access';
 
 interface TimelineViewProps {
   userRole: UserRole;
@@ -64,10 +65,17 @@ export function TimelineView({
   const [view, setView] = useState<'month' | 'year'>('year');
   const [filterUnit, setFilterUnit] = useState<string>('all');
   const [showMyTasks, setShowMyTasks] = useState<'all' | 'my'>('all');
+  const isViewer = isViewerRole(userRole);
 
   useEffect(() => {
     setCurrentMonth(new Date(selectedAcademicYearStart, 8, 1));
   }, [selectedAcademicYearStart]);
+
+  useEffect(() => {
+    if (isViewer) {
+      setShowMyTasks('my');
+    }
+  }, [isViewer]);
 
   useEffect(() => {
     let isMounted = true;
@@ -160,10 +168,10 @@ export function TimelineView({
     () =>
       allEvents.filter((event) => {
         if (event.academicYearStart !== selectedAcademicYearStart) return false;
-        if (userUnit && event.unit !== userUnit) return false;
+        if (!isViewer && userUnit && event.unit !== userUnit) return false;
         if (filterUnit !== 'all' && event.unit !== filterUnit) return false;
 
-        if (showMyTasks === 'my') {
+        if (isViewer || showMyTasks === 'my') {
           if (Array.isArray(event.assignedTo)) {
             return event.assignedTo.includes(userName);
           }
@@ -173,7 +181,15 @@ export function TimelineView({
 
         return true;
       }),
-    [allEvents, filterUnit, selectedAcademicYearStart, showMyTasks, userName, userUnit]
+    [
+      allEvents,
+      filterUnit,
+      isViewer,
+      selectedAcademicYearStart,
+      showMyTasks,
+      userName,
+      userUnit,
+    ]
   );
 
   const academicMonths = useMemo(
@@ -265,15 +281,16 @@ export function TimelineView({
             onChange={(event) =>
               setShowMyTasks(event.target.value as 'all' | 'my')
             }
+            disabled={isViewer}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="all">All Tasks</option>
+            {!isViewer && <option value="all">All Tasks</option>}
             <option value="my">My Tasks</option>
           </select>
         </div>
       </div>
 
-      {showMyTasks === 'my' && (
+      {(showMyTasks === 'my' || isViewer) && (
         <span className="text-sm text-purple-600">
           Showing only tasks assigned to {userName}
         </span>
@@ -285,29 +302,31 @@ export function TimelineView({
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="flex items-center gap-4">
-          <Filter className="w-5 h-5 text-gray-400" />
-          <div>
-            <label className="block text-sm text-gray-700 mb-2">
-              Filter by Unit
-            </label>
-            <select
-              value={filterUnit}
-              onChange={(event) => setFilterUnit(event.target.value)}
-              disabled={userRole === 'Unit Manager' && Boolean(userUnit)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            >
-              <option value="all">All Units</option>
-              {units.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </select>
+      {!isViewer && (
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center gap-4">
+            <Filter className="w-5 h-5 text-gray-400" />
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">
+                Filter by Unit
+              </label>
+              <select
+                value={filterUnit}
+                onChange={(event) => setFilterUnit(event.target.value)}
+                disabled={userRole === 'Unit Manager' && Boolean(userUnit)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+              >
+                <option value="all">All Units</option>
+                {units.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="flex flex-wrap items-center gap-6">

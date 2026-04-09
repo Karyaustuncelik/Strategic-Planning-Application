@@ -9,11 +9,12 @@ import {
   Clock,
   ListTodo,
 } from 'lucide-react';
-
-import { Phase1Checklist } from './Phase1Checklist';
+import { useI18n } from '../i18n';
+import { isViewerRole } from '../lib/access';
 
 interface DashboardProps {
   userRole: UserRole;
+  userName: string;
   userUnit?: string;
   selectedAcademicYearStart: number;
   onOpenHierarchy: () => void;
@@ -21,15 +22,19 @@ interface DashboardProps {
 
 export function Dashboard({
   userRole,
+  userName,
   userUnit,
   selectedAcademicYearStart,
   onOpenHierarchy,
 }: DashboardProps) {
+  const { language, t } = useI18n();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [actions, setActions] = useState<ActionPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isViewer = isViewerRole(userRole);
+  const locale = language === 'tr' ? 'tr-TR' : 'en-US';
 
   useEffect(() => {
     let isMounted = true;
@@ -77,24 +82,32 @@ export function Dashboard({
 
   const filteredGoals = useMemo(
     () =>
-      userUnit
-        ? goals.filter((goal) => goal.responsibleUnit === userUnit)
-        : goals,
-    [goals, userUnit]
+      isViewer
+        ? goals.filter((goal) => goal.assignedTo?.includes(userName))
+        : userUnit
+          ? goals.filter((goal) => goal.responsibleUnit === userUnit)
+          : goals,
+    [goals, isViewer, userName, userUnit]
   );
 
   const filteredKPIs = useMemo(
     () =>
-      userUnit ? kpis.filter((kpi) => kpi.responsibleUnit === userUnit) : kpis,
-    [kpis, userUnit]
+      isViewer
+        ? kpis.filter((kpi) => kpi.assignedTo === userName)
+        : userUnit
+          ? kpis.filter((kpi) => kpi.responsibleUnit === userUnit)
+          : kpis,
+    [isViewer, kpis, userName, userUnit]
   );
 
   const filteredActions = useMemo(
     () =>
-      userUnit
-        ? actions.filter((action) => action.responsibleUnit === userUnit)
-        : actions,
-    [actions, userUnit]
+      isViewer
+        ? actions.filter((action) => action.assignedTo === userName)
+        : userUnit
+          ? actions.filter((action) => action.responsibleUnit === userUnit)
+          : actions,
+    [actions, isViewer, userName, userUnit]
   );
 
   const stats = useMemo(() => {
@@ -151,7 +164,7 @@ export function Dashboard({
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
           <CheckCircle className="w-3 h-3" />
-          On Track
+          {t('On Track')}
         </span>
       );
     }
@@ -160,7 +173,7 @@ export function Dashboard({
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">
           <AlertTriangle className="w-3 h-3" />
-          At Risk
+          {t('At Risk')}
         </span>
       );
     }
@@ -169,7 +182,7 @@ export function Dashboard({
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
           <CheckCircle className="w-3 h-3" />
-          Completed
+          {t('Completed')}
         </span>
       );
     }
@@ -178,7 +191,7 @@ export function Dashboard({
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
           <Clock className="w-3 h-3" />
-          Not Started
+          {t('Not Started')}
         </span>
       );
     }
@@ -186,7 +199,7 @@ export function Dashboard({
     return (
       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs">
         <Clock className="w-3 h-3" />
-        Delayed
+        {t('Delayed')}
       </span>
     );
   };
@@ -194,23 +207,25 @@ export function Dashboard({
   return (
     <div className="space-y-6">
       <div>
-        <h2>Dashboard Overview</h2>
+        <h2>{t('Dashboard Overview')}</h2>
         <p className="text-gray-600">
-          {userUnit ? `${userUnit} Performance` : 'Organization-Wide Performance'}
+          {isViewer
+            ? t('Assigned work overview')
+            : userUnit
+              ? `${userUnit} ${t('Performance')}`
+              : t('Organization-Wide Performance')}
         </p>
       </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-          {error}
+          {t(error)}
         </div>
       )}
 
-      <Phase1Checklist />
-
       {isLoading ? (
         <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center">
-          <p className="text-gray-500">Dashboard data is loading...</p>
+          <p className="text-gray-500">{t('Dashboard data is loading...')}</p>
         </div>
       ) : (
         <>
@@ -218,22 +233,27 @@ export function Dashboard({
             <button
               type="button"
               onClick={onOpenHierarchy}
-              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors hover:border-blue-200 hover:bg-blue-50"
+              disabled={isViewer}
+              className={`bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors ${
+                isViewer
+                  ? 'cursor-default'
+                  : 'hover:border-blue-200 hover:bg-blue-50'
+              }`}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-blue-100 p-3 rounded-lg">
                   <Target className="w-6 h-6 text-blue-600" />
                 </div>
-                <span className="text-gray-500">Goals</span>
+                <span className="text-gray-500">{t('Goals')}</span>
               </div>
               <div className="text-3xl mb-2">{stats.totalGoals}</div>
               <div className="flex items-center gap-4 text-sm">
                 <span className="text-green-600">
-                  {stats.goalsOnTrack} <span>On Track</span>
+                  {stats.goalsOnTrack} <span>{t('On Track')}</span>
                 </span>
                 {stats.goalsAtRisk > 0 && (
                   <span className="text-orange-600">
-                    {stats.goalsAtRisk} <span>At Risk</span>
+                    {stats.goalsAtRisk} <span>{t('At Risk')}</span>
                   </span>
                 )}
               </div>
@@ -242,17 +262,22 @@ export function Dashboard({
             <button
               type="button"
               onClick={onOpenHierarchy}
-              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors hover:border-blue-200 hover:bg-blue-50"
+              disabled={isViewer}
+              className={`bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors ${
+                isViewer
+                  ? 'cursor-default'
+                  : 'hover:border-blue-200 hover:bg-blue-50'
+              }`}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-green-100 p-3 rounded-lg">
                   <TrendingUp className="w-6 h-6 text-green-600" />
                 </div>
-                <span className="text-gray-500">KPIs</span>
+                <span className="text-gray-500">{t('KPIs')}</span>
               </div>
               <div className="text-3xl mb-2">{stats.totalKPIs}</div>
               <div className="text-sm text-gray-600">
-                {stats.kpisOnTarget} <span>On Target</span> (
+                {stats.kpisOnTarget} <span>{t('On Target')}</span> (
                 {stats.totalKPIs > 0
                   ? Math.round((stats.kpisOnTarget / stats.totalKPIs) * 100)
                   : 0}
@@ -263,57 +288,67 @@ export function Dashboard({
             <button
               type="button"
               onClick={onOpenHierarchy}
-              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors hover:border-blue-200 hover:bg-blue-50"
+              disabled={isViewer}
+              className={`bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors ${
+                isViewer
+                  ? 'cursor-default'
+                  : 'hover:border-blue-200 hover:bg-blue-50'
+              }`}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-purple-100 p-3 rounded-lg">
                   <ListTodo className="w-6 h-6 text-purple-600" />
                 </div>
-                <span className="text-gray-500">Action Plans</span>
+                <span className="text-gray-500">{t('Action Plans')}</span>
               </div>
               <div className="text-3xl mb-2">{stats.totalActions}</div>
               <div className="text-sm text-gray-600">
-                {stats.actionsCompleted} <span>Completed</span>,{' '}
-                {stats.actionsInProgress} <span>In Progress</span>
+                {stats.actionsCompleted} <span>{t('Completed')}</span>,{' '}
+                {stats.actionsInProgress} <span>{t('In Progress')}</span>
               </div>
             </button>
 
             <button
               type="button"
               onClick={onOpenHierarchy}
-              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors hover:border-blue-200 hover:bg-blue-50"
+              disabled={isViewer}
+              className={`bg-white p-6 rounded-lg shadow-sm border border-gray-200 text-left transition-colors ${
+                isViewer
+                  ? 'cursor-default'
+                  : 'hover:border-blue-200 hover:bg-blue-50'
+              }`}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="bg-orange-100 p-3 rounded-lg">
                   <AlertTriangle className="w-6 h-6 text-orange-600" />
                 </div>
-                <span className="text-gray-500">Alerts</span>
+                <span className="text-gray-500">{t('Alerts')}</span>
               </div>
               <div className="text-3xl mb-2">
                 {stats.goalsAtRisk + stats.goalsDelayed + stats.actionsBlocked}
               </div>
-              <div className="text-sm text-gray-600">Items requiring attention</div>
+              <div className="text-sm text-gray-600">{t('Items requiring attention')}</div>
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
               <div className="text-2xl mb-1">{stats.mainGoals}</div>
-              <div className="text-sm text-gray-600">Main Goals</div>
+              <div className="text-sm text-gray-600">{t('Main Goals')}</div>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <div className="text-2xl mb-1">{stats.subGoals}</div>
-              <div className="text-sm text-gray-600">Sub Goals</div>
+              <div className="text-sm text-gray-600">{t('Sub Goals')}</div>
             </div>
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <div className="text-2xl mb-1">{stats.avgProgress}%</div>
-              <div className="text-sm text-gray-600">Average Progress</div>
+              <div className="text-sm text-gray-600">{t('Average Progress')}</div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <h3 className="mb-4">Goals by Status</h3>
+              <h3 className="mb-4">{t('Goals by Status')}</h3>
               <div className="space-y-3">
                 {filteredGoals.slice(0, 5).map((goal) => (
                   <div
@@ -332,14 +367,14 @@ export function Dashboard({
 
                 {filteredGoals.length === 0 && (
                   <div className="text-sm text-gray-500 text-center py-6">
-                    No goals found for the selected year.
+                    {t('No goals found for the selected year.')}
                   </div>
                 )}
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <h3 className="mb-4">Upcoming Deadlines</h3>
+              <h3 className="mb-4">{t('Upcoming Deadlines')}</h3>
               <div className="space-y-3">
                 {upcomingDeadlines.map((action) => {
                   const daysUntil = Math.ceil(
@@ -364,15 +399,15 @@ export function Dashboard({
                             daysUntil < 7 ? 'text-red-600' : 'text-gray-700'
                           }`}
                         >
-                          {new Date(action.deadline).toLocaleDateString()}
+                          {new Date(action.deadline).toLocaleDateString(locale)}
                         </div>
                         <div className="text-xs text-gray-500">
                           {daysUntil >= 0 ? (
                             <>
-                              {daysUntil} <span>days</span>
+                              {daysUntil} <span>{t('days')}</span>
                             </>
                           ) : (
-                            'Overdue'
+                            t('Overdue')
                           )}
                         </div>
                       </div>
@@ -382,7 +417,7 @@ export function Dashboard({
 
                 {upcomingDeadlines.length === 0 && (
                   <div className="text-sm text-gray-500 text-center py-6">
-                    No upcoming action deadlines.
+                    {t('No upcoming action deadlines.')}
                   </div>
                 )}
               </div>
@@ -390,7 +425,7 @@ export function Dashboard({
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="mb-4">KPI Performance Overview</h3>
+            <h3 className="mb-4">{t('KPI Performance Overview')}</h3>
             <div className="space-y-4">
               {filteredKPIs.slice(0, 6).map((kpi) => {
                 const percentage =
@@ -430,7 +465,7 @@ export function Dashboard({
 
               {filteredKPIs.length === 0 && (
                 <div className="text-sm text-gray-500 text-center py-6">
-                  No KPI data found for the selected year.
+                  {t('No KPI data found for the selected year.')}
                 </div>
               )}
             </div>

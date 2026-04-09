@@ -1,4 +1,37 @@
-export type UserRole = 'Strategy Office' | 'Unit Manager' | 'Senior Management';
+export type UserRole =
+  | 'Strategy Office'
+  | 'Unit Manager'
+  | 'Senior Management'
+  | 'Viewer';
+
+export type LoginMode = 'admin' | 'viewer';
+
+export interface AuthSession {
+  id?: string;
+  name: string;
+  role: UserRole;
+  unit?: string;
+  loginMode: LoginMode;
+}
+
+export interface ViewerAccount {
+  id: string;
+  name: string;
+  unit?: string;
+}
+
+export interface AuthOptions {
+  adminUsername: string;
+  viewerPasswordHint: string;
+  viewerAccounts: ViewerAccount[];
+}
+
+export interface LoginPayload {
+  loginMode: LoginMode;
+  password: string;
+  username?: string;
+  viewerId?: string;
+}
 
 export type GoalStatus =
   | 'On Track'

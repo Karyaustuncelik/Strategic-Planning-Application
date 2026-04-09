@@ -16,6 +16,7 @@ import {
   User,
   Target,
 } from 'lucide-react';
+import { isViewerRole } from '../lib/access';
 
 interface MilestoneManagementProps {
   userName: string;
@@ -29,6 +30,7 @@ interface MilestoneManagementProps {
 
 export function MilestoneManagement({
   userName,
+  userRole,
   userUnit,
   selectedAcademicYearStart,
   isReadOnly,
@@ -49,6 +51,7 @@ export function MilestoneManagement({
   const [error, setError] = useState<string | null>(null);
   const [isSavingUpdate, setIsSavingUpdate] = useState(false);
   const [isSavingEvidence, setIsSavingEvidence] = useState(false);
+  const isViewer = userRole ? isViewerRole(userRole) : false;
 
   useEffect(() => {
     let isMounted = true;
@@ -120,10 +123,10 @@ export function MilestoneManagement({
     () =>
       milestones.filter((milestone) => {
         if (goalId && milestone.linkedId !== goalId) return false;
-        if (
-          userUnit &&
-          goalMeta[milestone.linkedId]?.unit !== userUnit
-        ) {
+        if (isViewer && milestone.owner !== userName) {
+          return false;
+        }
+        if (userUnit && !isViewer && goalMeta[milestone.linkedId]?.unit !== userUnit) {
           return false;
         }
         if (filterStatus !== 'all' && milestone.status !== filterStatus) return false;
@@ -147,7 +150,17 @@ export function MilestoneManagement({
 
         return true;
       }),
-    [filterDate, filterOwner, filterStatus, goalId, goalMeta, milestones, userUnit]
+    [
+      filterDate,
+      filterOwner,
+      filterStatus,
+      goalId,
+      goalMeta,
+      isViewer,
+      milestones,
+      userName,
+      userUnit,
+    ]
   );
 
   const uniqueOwners = useMemo(

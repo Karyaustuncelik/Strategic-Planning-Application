@@ -311,6 +311,240 @@ const seedMilestones = [
   },
 ];
 
+seedKpis.push(
+  {
+    id: 'KPI101',
+    goal_id: 'G101',
+    name: 'High-impact journal publications',
+    description:
+      'Track the number of publications accepted in top-tier journals.',
+    target_value: 30,
+    current_value: 27,
+    unit: 'publications',
+    academic_year_start: 2024,
+    responsible_unit: 'Research Department',
+    deadline: '2025-01-31',
+    status: 'Completed',
+    updated_at: '2025-01-20T14:30:00Z',
+    updated_by: 'Dr. Sarah Johnson',
+    assigned_to: 'Dr. Sarah Johnson',
+  },
+  {
+    id: 'KPI102',
+    goal_id: 'G102',
+    name: 'Student retention rate',
+    description:
+      'Measure retention rate improvement for first-year and at-risk students.',
+    target_value: 91,
+    current_value: 89,
+    unit: '%',
+    academic_year_start: 2024,
+    responsible_unit: 'Academic Affairs',
+    deadline: '2025-01-31',
+    status: 'Completed',
+    updated_at: '2025-01-18T12:15:00Z',
+    updated_by: 'Prof. Emily Chen',
+    assigned_to: 'Prof. Emily Chen',
+  },
+  {
+    id: 'KPI103',
+    goal_id: 'G103',
+    name: 'LMS migration completion',
+    description: 'Percentage of LMS migration tasks completed on schedule.',
+    target_value: 100,
+    current_value: 96,
+    unit: '%',
+    academic_year_start: 2024,
+    responsible_unit: 'IT Department',
+    deadline: '2025-01-15',
+    status: 'Completed',
+    updated_at: '2025-01-25T09:15:00Z',
+    updated_by: 'John Smith',
+    assigned_to: 'John Smith',
+  },
+  {
+    id: 'KPI104',
+    goal_id: 'G103',
+    name: 'Digital adoption training coverage',
+    description: 'Track staff participation in digital adoption training sessions.',
+    target_value: 120,
+    current_value: 104,
+    unit: 'participants',
+    academic_year_start: 2024,
+    responsible_unit: 'IT Department',
+    deadline: '2025-03-31',
+    status: 'On Track',
+    updated_at: '2025-02-10T10:00:00Z',
+    updated_by: 'Maria Garcia',
+    assigned_to: 'Maria Garcia',
+  }
+);
+
+seedActionPlans.push(
+  {
+    id: 'AP101',
+    goal_id: 'G101',
+    kpi_id: 'KPI101',
+    title: 'Deliver academic writing bootcamps',
+    description:
+      'Run monthly academic writing bootcamps for faculty and graduate students.',
+    responsible_unit: 'Research Department',
+    assigned_to: 'Dr. Sarah Johnson',
+    deadline: '2025-01-10',
+    status: 'Completed',
+    progress: 100,
+    created_at: '2024-09-15T10:00:00Z',
+    updated_at: '2025-01-20T14:30:00Z',
+    updated_by: 'Dr. Sarah Johnson',
+    notes: 'Historical demo data for copy-year testing.',
+    priority: 'High',
+    academic_year_start: 2024,
+  },
+  {
+    id: 'AP102',
+    goal_id: 'G102',
+    kpi_id: 'KPI102',
+    title: 'Expand tutoring center coverage',
+    description:
+      'Recruit additional tutors and extend tutoring center operating hours.',
+    responsible_unit: 'Academic Affairs',
+    assigned_to: 'Prof. Emily Chen',
+    deadline: '2025-01-20',
+    status: 'Completed',
+    progress: 100,
+    created_at: '2024-09-18T09:00:00Z',
+    updated_at: '2025-01-18T12:15:00Z',
+    updated_by: 'Prof. Emily Chen',
+    notes: 'Historical demo data for copy-year testing.',
+    priority: 'Critical',
+    academic_year_start: 2024,
+  },
+  {
+    id: 'AP103',
+    goal_id: 'G103',
+    kpi_id: 'KPI103',
+    title: 'Migrate pilot faculties to the new LMS',
+    description:
+      'Move pilot faculties into the new LMS and verify course delivery workflows.',
+    responsible_unit: 'IT Department',
+    assigned_to: 'John Smith',
+    deadline: '2025-01-05',
+    status: 'Completed',
+    progress: 100,
+    created_at: '2024-09-20T08:30:00Z',
+    updated_at: '2025-01-25T09:15:00Z',
+    updated_by: 'John Smith',
+    notes: 'Historical demo data for copy-year testing.',
+    priority: 'High',
+    academic_year_start: 2024,
+  },
+  {
+    id: 'AP104',
+    goal_id: 'G103',
+    kpi_id: 'KPI104',
+    title: 'Publish digital adoption training calendar',
+    description:
+      'Finalize and publish the rollout calendar for digital adoption sessions.',
+    responsible_unit: 'IT Department',
+    assigned_to: 'Maria Garcia',
+    deadline: '2025-02-15',
+    status: 'In Progress',
+    progress: 65,
+    created_at: '2024-12-10T10:00:00Z',
+    updated_at: '2025-02-10T10:00:00Z',
+    updated_by: 'Maria Garcia',
+    notes: 'Historical demo data for copy-year testing.',
+    priority: 'Medium',
+    academic_year_start: 2024,
+  }
+);
+
+seedMilestones.push(
+  {
+    id: 'MS101',
+    linked_type: 'Goal',
+    linked_id: 'G101',
+    title: 'Workshop curriculum approved',
+    description: 'Approve the curriculum and speaker roster for bootcamps.',
+    owner: 'Dr. Sarah Johnson',
+    due_date: '2024-10-15',
+    status: 'Completed',
+    definition_of_done:
+      'Curriculum approved, speakers confirmed, and materials shared.',
+    progress: 100,
+    created_at: '2024-09-15T10:00:00Z',
+    updated_at: '2024-10-15T16:00:00Z',
+    updated_by: 'Dr. Sarah Johnson',
+    progress_updates: JSON.stringify([
+      {
+        id: 'PU101',
+        milestoneId: 'MS101',
+        timestamp: '2024-10-15T16:00:00Z',
+        user: 'Dr. Sarah Johnson',
+        note: 'Curriculum and speakers approved by the research committee.',
+        progressPercentage: 100,
+      },
+    ]),
+    evidence_links: JSON.stringify([
+      'https://example.edu/research/2024-workshop-curriculum',
+    ]),
+  },
+  {
+    id: 'MS102',
+    linked_type: 'Goal',
+    linked_id: 'G102',
+    title: 'Tutoring hiring plan finalized',
+    description: 'Complete staffing plan for extended tutoring hours.',
+    owner: 'Prof. Emily Chen',
+    due_date: '2025-01-20',
+    status: 'Completed',
+    definition_of_done:
+      'Hiring plan approved and at least four tutors shortlisted.',
+    progress: 100,
+    created_at: '2024-10-01T09:00:00Z',
+    updated_at: '2025-01-18T12:15:00Z',
+    updated_by: 'Prof. Emily Chen',
+    progress_updates: JSON.stringify([
+      {
+        id: 'PU102',
+        milestoneId: 'MS102',
+        timestamp: '2025-01-18T12:15:00Z',
+        user: 'Prof. Emily Chen',
+        note: 'Hiring plan approved and tutoring roster finalized.',
+        progressPercentage: 100,
+      },
+    ]),
+    evidence_links: JSON.stringify([]),
+  },
+  {
+    id: 'MS103',
+    linked_type: 'Goal',
+    linked_id: 'G103',
+    title: 'Pilot migration sign-off',
+    description: 'Complete sign-off for the pilot LMS migration release.',
+    owner: 'John Smith',
+    due_date: '2025-01-15',
+    status: 'Completed',
+    definition_of_done:
+      'Pilot faculties sign off, defects triaged, and release approved.',
+    progress: 100,
+    created_at: '2024-10-05T08:00:00Z',
+    updated_at: '2025-01-25T09:15:00Z',
+    updated_by: 'John Smith',
+    progress_updates: JSON.stringify([
+      {
+        id: 'PU103',
+        milestoneId: 'MS103',
+        timestamp: '2025-01-25T09:15:00Z',
+        user: 'John Smith',
+        note: 'Pilot migration accepted and sign-off completed.',
+        progressPercentage: 100,
+      },
+    ]),
+    evidence_links: JSON.stringify([]),
+  }
+);
+
 function createHttpError(statusCode, message) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -463,6 +697,12 @@ async function seedTableIfEmpty(client, tableName, seeds, insertSql, mapSeedToVa
 
   if (rows[0].count > 0) return;
 
+  for (const seed of seeds) {
+    await client.query(insertSql, mapSeedToValues(seed));
+  }
+}
+
+async function ensureSeedRows(client, seeds, insertSql, mapSeedToValues) {
   for (const seed of seeds) {
     await client.query(insertSql, mapSeedToValues(seed));
   }
@@ -675,9 +915,8 @@ export async function initPlanningDb() {
   await pool.query(createActionPlansTableSql);
   await pool.query(createMilestonesTableSql);
 
-  await seedTableIfEmpty(
+  await ensureSeedRows(
     pool,
-    'kpis',
     seedKpis,
     `INSERT INTO kpis (
       id, goal_id, name, description, target_value, current_value, unit,
@@ -685,7 +924,8 @@ export async function initPlanningDb() {
       updated_by, assigned_to
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-    )`,
+    )
+    ON CONFLICT (id) DO NOTHING`,
     (item) => [
       item.id,
       item.goal_id,
@@ -704,9 +944,8 @@ export async function initPlanningDb() {
     ]
   );
 
-  await seedTableIfEmpty(
+  await ensureSeedRows(
     pool,
-    'action_plans',
     seedActionPlans,
     `INSERT INTO action_plans (
       id, goal_id, kpi_id, title, description, responsible_unit, assigned_to,
@@ -714,7 +953,8 @@ export async function initPlanningDb() {
       priority, academic_year_start
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
-    )`,
+    )
+    ON CONFLICT (id) DO NOTHING`,
     (item) => [
       item.id,
       item.goal_id,
@@ -735,9 +975,8 @@ export async function initPlanningDb() {
     ]
   );
 
-  await seedTableIfEmpty(
+  await ensureSeedRows(
     pool,
-    'milestones',
     seedMilestones,
     `INSERT INTO milestones (
       id, linked_type, linked_id, title, description, owner, due_date, status,
@@ -745,7 +984,8 @@ export async function initPlanningDb() {
       progress_updates, evidence_links
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb
-    )`,
+    )
+    ON CONFLICT (id) DO NOTHING`,
     (item) => [
       item.id,
       item.linked_type,
