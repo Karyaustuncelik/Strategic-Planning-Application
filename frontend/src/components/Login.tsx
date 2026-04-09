@@ -180,14 +180,6 @@ export function Login({ onLogin }: LoginProps) {
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
                   <Building2 className="h-6 w-6" />
                 </div>
-                <h2 className="mt-5 text-xl font-semibold text-slate-900">
-                  {t('Choose a sign-in type')}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {t(
-                    'The form on the right updates based on whether you choose admin or team member access.'
-                  )}
-                </p>
               </div>
             )}
 
