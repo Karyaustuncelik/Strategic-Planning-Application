@@ -35,6 +35,57 @@ const translationEntries: TranslationEntry[] = [
     en: 'This Phase 1 prototype uses synthetic data for testing and demonstration purposes.',
     tr: 'Bu Faz 1 prototipi, test ve gösterim amaçları için sentetik veriler kullanır.',
   },
+  { en: 'Admin', tr: 'Yönetici' },
+  { en: 'Admin Login', tr: 'Yönetici Girişi' },
+  { en: 'Team Member Login', tr: 'Ekip Üyesi Girişi' },
+  { en: 'Password', tr: 'Şifre' },
+  { en: 'Username', tr: 'Kullanıcı Adı' },
+  { en: 'Demo credentials', tr: 'Demo giriş bilgileri' },
+  { en: 'Team members', tr: 'Ekip üyeleri' },
+  { en: 'Select a person from the list', tr: 'Listeden bir kişi seçin' },
+  {
+    en: 'Separate sign-in paths keep admin and team workflows clean.',
+    tr: 'Yönetici ve ekip iş akışlarını ayrı giriş yollarıyla düzenli tutun.',
+  },
+  {
+    en: 'The admin side handles planning, assignment, and management work.',
+    tr: 'Yönetici tarafı planlama, atama ve yönetim işlerini yürütür.',
+  },
+  {
+    en: 'Team members only see the items assigned to their own account.',
+    tr: 'Ekip üyeleri yalnızca kendi hesaplarına atanan öğeleri görür.',
+  },
+  {
+    en: 'Goal creation, task assignment, analytics, and calendar settings.',
+    tr: 'Hedef oluşturma, görev atama, analitik ve takvim ayarları.',
+  },
+  {
+    en: 'Assigned tasks, goals, timeline, and progress tracking.',
+    tr: 'Atanan görevler, hedefler, zaman çizelgesi ve ilerleme takibi.',
+  },
+  { en: 'Choose a sign-in type', tr: 'Bir giriş türü seçin' },
+  {
+    en: 'The form on the right updates based on whether you choose admin or team member access.',
+    tr: 'Sağdaki form, yönetici ya da ekip üyesi erişimini seçmene göre güncellenir.',
+  },
+  {
+    en: 'This sign-in opens the full management workspace.',
+    tr: 'Bu giriş, tam yönetim çalışma alanını açar.',
+  },
+  {
+    en: 'Only the pages and tasks assigned to this person are shown.',
+    tr: 'Yalnızca bu kişiye atanmış sayfalar ve görevler gösterilir.',
+  },
+  { en: 'Team member', tr: 'Ekip üyesi' },
+  { en: 'Select a team member', tr: 'Bir ekip üyesi seçin' },
+  { en: 'No unit information', tr: 'Birim bilgisi yok' },
+  { en: 'Please choose a team member account.', tr: 'Lütfen bir ekip üyesi hesabı seçin.' },
+  { en: 'Login as Admin', tr: 'Yönetici olarak giriş yap' },
+  { en: 'Login as Team Member', tr: 'Ekip üyesi olarak giriş yap' },
+  { en: 'Signing in...', tr: 'Giriş yapılıyor...' },
+  { en: 'Login options could not be loaded', tr: 'Giriş seçenekleri yüklenemedi' },
+  { en: 'Admin login failed', tr: 'Yönetici girişi başarısız oldu' },
+  { en: 'Viewer login failed', tr: 'Ekip üyesi girişi başarısız oldu' },
   { en: 'Academic Year', tr: 'Akademik Yıl' },
   { en: 'Academic Year Range', tr: 'Akademik Yıl Aralığı' },
   { en: 'Edit', tr: 'Düzenle', aliases: ['Duzenle', 'Düzenle', 'DAzenle'] },
@@ -43,12 +94,37 @@ const translationEntries: TranslationEntry[] = [
   { en: 'Dashboard', tr: 'Panel' },
   { en: 'Goal Hierarchy', tr: 'Hedef Hiyerarşisi' },
   { en: 'My Assigned Goals', tr: 'Atanan Hedeflerim' },
+  { en: 'My Goals', tr: 'Hedeflerim' },
   { en: 'Analytics', tr: 'Analitik' },
   { en: 'Assignments', tr: 'Atamalar' },
   { en: 'Milestones', tr: 'Kilometre Taşları' },
   { en: 'Timeline', tr: 'Zaman Çizelgesi' },
+  { en: 'My Workspace', tr: 'Çalışma Alanım' },
+  { en: 'Admin workspace', tr: 'Yönetici çalışma alanı' },
+  { en: 'Team workspace', tr: 'Ekip çalışma alanı' },
+  { en: 'Strategic Planning Office', tr: 'Stratejik Planlama Ofisi' },
+  {
+    en: 'Personal workspace for assigned work',
+    tr: 'Atanan işler için kişisel çalışma alanı',
+  },
+  {
+    en: 'Admin workspace for planning and assignments',
+    tr: 'Planlama ve atamalar için yönetici çalışma alanı',
+  },
+  {
+    en: 'Only your personal work areas are visible.',
+    tr: 'Yalnızca kişisel çalışma alanların görünür.',
+  },
+  {
+    en: 'Admin pages and planning tools are available here.',
+    tr: 'Yönetici sayfaları ve planlama araçları burada kullanılabilir.',
+  },
+  { en: 'Navigation', tr: 'Gezinme' },
+  { en: 'Switch language to Turkish', tr: 'Dili Türkçeye çevir' },
+  { en: 'Switch language to English', tr: 'Dili İngilizceye çevir' },
   { en: 'Dashboard Overview', tr: 'Panel Özeti' },
   { en: 'Organization-Wide Performance', tr: 'Kurum Geneli Performansı' },
+  { en: 'Assigned work overview', tr: 'Atanan iş özeti' },
   { en: 'Performance', tr: 'Performans' },
   { en: 'Goals', tr: 'Hedefler' },
   { en: 'Goal', tr: 'Hedef' },
@@ -176,6 +252,8 @@ const translationEntries: TranslationEntry[] = [
   { en: 'Critical', tr: 'Kritik' },
   { en: 'Notes', tr: 'Notlar' },
   { en: 'Deadline', tr: 'Son Tarih' },
+  { en: 'Start Date', tr: 'Başlangıç Tarihi' },
+  { en: 'End Date', tr: 'Bitiş Tarihi' },
   { en: 'Timeline', tr: 'Zaman Çizelgesi' },
   { en: 'Calendar & Timeline', tr: 'Takvim ve Zaman Çizelgesi' },
   { en: 'Goals and action plans timeline', tr: 'Hedef ve aksiyon planı zaman çizelgesi' },
@@ -194,6 +272,12 @@ const translationEntries: TranslationEntry[] = [
   { en: 'Manage the academic year list shown in the selector.', tr: 'Seçicide gösterilen akademik yıl listesini yönetin.' },
   { en: 'Manage the academic year list and define unit owners for each year.', tr: 'Akademik yıl listesini yönetin ve her yıl için birim sorumlularını tanımlayın.' },
   { en: 'Back', tr: 'Geri Dön' },
+  { en: 'Goal is loading...', tr: 'Hedef yükleniyor...' },
+  { en: 'Goal not found.', tr: 'Hedef bulunamadı.' },
+  { en: 'Failed to load goal', tr: 'Hedef yüklenemedi' },
+  { en: 'Failed to load goals', tr: 'Hedefler yüklenemedi' },
+  { en: 'Failed to load dashboard data', tr: 'Panel verileri yüklenemedi' },
+  { en: 'Failed to update goal', tr: 'Hedef güncellenemedi' },
   { en: 'Add academic year', tr: 'Akademik yıl ekle' },
   { en: 'Use format 2025-26 (or 25-26).', tr: '2025-26 (veya 25-26) formatını kullanın.' },
   { en: 'This academic year is already listed.', tr: 'Bu akademik yıl zaten listede.' },
@@ -206,9 +290,25 @@ const translationEntries: TranslationEntry[] = [
   { en: 'Remove academic year', tr: 'Akademik yılı kaldır' },
   { en: 'At least one year is required', tr: 'En az bir yıl gerekli' },
   { en: 'Hierarchy', tr: 'Hiyerarşi' },
+  { en: 'Parent Goal', tr: 'Üst Hedef' },
   { en: 'Overview', tr: 'Genel Bakış' },
   { en: 'Save', tr: 'Kaydet' },
   { en: 'Saving...', tr: 'Kaydediliyor...' },
+  { en: 'Progress (%)', tr: 'İlerleme (%)' },
+  { en: 'Progress Status', tr: 'İlerleme Durumu' },
+  { en: 'Total Progress', tr: 'Toplam İlerleme' },
+  { en: 'Last Updated', tr: 'Son Güncelleme' },
+  { en: 'Updated By', tr: 'Güncelleyen' },
+  { en: 'KPI Count', tr: 'KPI Sayısı' },
+  { en: 'Assigned People', tr: 'Atanan Kişiler' },
+  { en: 'Assigned People (comma separated)', tr: 'Atanan kişiler (virgülle ayırın)' },
+  { en: 'No KPIs were found for this goal.', tr: 'Bu hedef için KPI bulunamadı.' },
+  { en: 'No action plans were found for this goal.', tr: 'Bu hedef için aksiyon planı bulunamadı.' },
+  {
+    en: 'This goal has no hierarchy relationship yet.',
+    tr: 'Bu hedefin henüz bir hiyerarşi ilişkisi yok.',
+  },
+  { en: 'Strategy Office Admin', tr: 'Strateji Ofisi Yöneticisi' },
   { en: 'Cancel', tr: 'Vazgeç', aliases: ['Vazgec'] },
   { en: 'Hedef bulunamadı.', tr: 'Hedef bulunamadı.' },
   { en: 'General Bakış', tr: 'Genel Bakış' },
@@ -395,10 +495,10 @@ const translationEntries: TranslationEntry[] = [
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
 
 const getStoredLanguage = (): Language => {
-  if (typeof window === 'undefined') return 'tr';
+  if (typeof window === 'undefined') return 'en';
 
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === 'en' ? 'en' : 'tr';
+  const storedLanguage = window.localStorage.getItem(STORAGE_KEY);
+  return storedLanguage === 'tr' ? 'tr' : 'en';
 };
 
 const normalizeWhitespace = (value: string) => {

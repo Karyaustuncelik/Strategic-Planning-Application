@@ -1,8 +1,11 @@
 import type {
   ActionPlan,
   Assignment,
+  AuthOptions,
+  AuthSession,
   Goal,
   KPI,
+  LoginPayload,
   Milestone,
   UnitOwner,
 } from '../types';
@@ -16,6 +19,10 @@ type ApiErrorPayload = {
 };
 
 type GoalFilters = {
+  academicYearStart?: number;
+};
+
+type AuthOptionsFilters = {
   academicYearStart?: number;
 };
 
@@ -258,6 +265,21 @@ export function fetchGoals(filters: GoalFilters = {}) {
       academicYearStart: filters.academicYearStart,
     })}`
   );
+}
+
+export function fetchAuthOptions(filters: AuthOptionsFilters = {}) {
+  return apiRequest<AuthOptions>(
+    `${API_PREFIX}/auth/options${buildQuery({
+      academicYearStart: filters.academicYearStart,
+    })}`
+  );
+}
+
+export function login(payload: LoginPayload) {
+  return apiRequest<AuthSession>(`${API_PREFIX}/auth/login`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchGoalById(goalId: string) {

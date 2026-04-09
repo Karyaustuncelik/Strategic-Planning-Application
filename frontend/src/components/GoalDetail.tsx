@@ -18,6 +18,8 @@ import {
   fetchKPIs,
   updateGoal,
 } from '../lib/api';
+import { useI18n } from '../i18n';
+import { isAdminRole } from '../lib/access';
 
 interface GoalDetailProps {
   goalId: string;
@@ -34,6 +36,7 @@ export function GoalDetail({
   onBack,
   isReadOnly,
 }: GoalDetailProps) {
+  const { language, t } = useI18n();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [allGoals, setAllGoals] = useState<Goal[]>([]);
   const [relatedKPIs, setRelatedKPIs] = useState<KPI[]>([]);
@@ -46,6 +49,7 @@ export function GoalDetail({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const locale = language === 'tr' ? 'tr-TR' : 'en-US';
 
   useEffect(() => {
     let isMounted = true;
@@ -105,6 +109,10 @@ export function GoalDetail({
   }, [goalId]);
 
   const goalData = editableGoal ?? goal;
+  const canEditGoal =
+    userRole === 'Unit Manager'
+      ? goalData?.responsibleUnit === userUnit
+      : isAdminRole(userRole);
 
   const parentGoal = useMemo(
     () =>
@@ -208,7 +216,7 @@ export function GoalDetail({
   if (isLoading) {
     return (
       <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center">
-        <p className="text-gray-500">Goal is loading...</p>
+        <p className="text-gray-500">{t('Goal is loading...')}</p>
       </div>
     );
   }
@@ -216,12 +224,12 @@ export function GoalDetail({
   if (!goalData) {
     return (
       <div className="bg-white p-12 rounded-lg shadow-sm border border-gray-200 text-center">
-        <p className="text-gray-500">{error ?? 'Hedef bulunamadı.'}</p>
+        <p className="text-gray-500">{t(error ?? 'Goal not found.')}</p>
         <button
           onClick={onBack}
           className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          Geri Dön
+          {t('Back')}
         </button>
       </div>
     );
@@ -231,7 +239,7 @@ export function GoalDetail({
     <div className="space-y-6">
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-          {error}
+          {t(error)}
         </div>
       )}
 
@@ -242,11 +250,9 @@ export function GoalDetail({
             className="inline-flex items-center gap-2 text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Geri Dön
+            {t('Back')}
           </button>
-          {(userRole === 'Strategy Office' ||
-            goalData.responsibleUnit === userUnit) &&
-            !isReadOnly && (
+          {canEditGoal && !isReadOnly && (
               <div className="flex items-center gap-2">
                 {isEditing ? (
                   <>
@@ -255,14 +261,14 @@ export function GoalDetail({
                       disabled={isSaving}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
                     >
-                      {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+                      {isSaving ? t('Saving...') : t('Save')}
                     </button>
                     <button
                       onClick={handleCancelEdit}
                       disabled={isSaving}
                       className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      Vazgec
+                      {t('Cancel')}
                     </button>
                   </>
                 ) : (
@@ -271,7 +277,7 @@ export function GoalDetail({
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
-                    Duzenle
+                    {t('Edit')}
                   </button>
                 )}
               </div>
@@ -294,10 +300,10 @@ export function GoalDetail({
                 }`}
               >
                 {goalData.level === 0
-                  ? 'Ana Hedef'
+                  ? t('Main Goal')
                   : goalData.level === 1
-                    ? 'Alt Hedef'
-                    : 'Alt Item'}
+                    ? t('Sub Goal')
+                    : t('Sub Item')}
               </span>
               <span className="text-sm text-gray-500">{goalData.id}</span>
             </div>
@@ -310,14 +316,14 @@ export function GoalDetail({
                   goalData.status
                 )}`}
               >
-                {goalData.status}
+                {t(goalData.status)}
               </span>
               <span
                 className={`px-3 py-1 rounded-full text-sm ${getPriorityColor(
                   goalData.priority
                 )}`}
               >
-                {goalData.priority}
+                {t(goalData.priority)}
               </span>
             </div>
           </div>
@@ -335,7 +341,7 @@ export function GoalDetail({
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              Genel Bakış
+              {t('Overview')}
             </button>
             <button
               onClick={() => setActiveTab('kpis')}
@@ -345,7 +351,7 @@ export function GoalDetail({
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              KPI'lar ({relatedKPIs.length})
+              {t('KPIs')} ({relatedKPIs.length})
             </button>
             <button
               onClick={() => setActiveTab('actions')}
@@ -355,7 +361,7 @@ export function GoalDetail({
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              Aksiyon Planları ({relatedActions.length})
+              {t('Action Plans')} ({relatedActions.length})
             </button>
             <button
               onClick={() => setActiveTab('hierarchy')}
@@ -365,7 +371,7 @@ export function GoalDetail({
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >
-              Hiyerarşi
+              {t('Hierarchy')}
             </button>
           </nav>
         </div>
@@ -377,7 +383,7 @@ export function GoalDetail({
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm text-gray-600">Baslik</label>
+                      <label className="text-sm text-gray-600">{t('Title')}</label>
                       <input
                         value={editableGoal?.title ?? ''}
                         onChange={(event) =>
@@ -388,7 +394,7 @@ export function GoalDetail({
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">
-                        Sorumlu Birim
+                        {t('Responsible Unit')}
                       </label>
                       <input
                         value={editableGoal?.responsibleUnit ?? ''}
@@ -399,7 +405,7 @@ export function GoalDetail({
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-sm text-gray-600">Aciklama</label>
+                      <label className="text-sm text-gray-600">{t('Description')}</label>
                       <textarea
                         value={editableGoal?.description ?? ''}
                         onChange={(event) =>
@@ -409,7 +415,7 @@ export function GoalDetail({
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-600">Durum</label>
+                      <label className="text-sm text-gray-600">{t('Status')}</label>
                       <select
                         value={editableGoal?.status ?? 'On Track'}
                         onChange={(event) =>
@@ -420,15 +426,15 @@ export function GoalDetail({
                         }
                         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
                       >
-                        <option value="On Track">On Track</option>
-                        <option value="At Risk">At Risk</option>
-                        <option value="Delayed">Delayed</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Not Started">Not Started</option>
+                        <option value="On Track">{t('On Track')}</option>
+                        <option value="At Risk">{t('At Risk')}</option>
+                        <option value="Delayed">{t('Delayed')}</option>
+                        <option value="Completed">{t('Completed')}</option>
+                        <option value="Not Started">{t('Not Started')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-sm text-gray-600">Oncelik</label>
+                      <label className="text-sm text-gray-600">{t('Priority')}</label>
                       <select
                         value={editableGoal?.priority ?? 'Medium'}
                         onChange={(event) =>
@@ -439,15 +445,15 @@ export function GoalDetail({
                         }
                         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
                       >
-                        <option value="Critical">Critical</option>
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
+                        <option value="Critical">{t('Critical')}</option>
+                        <option value="High">{t('High')}</option>
+                        <option value="Medium">{t('Medium')}</option>
+                        <option value="Low">{t('Low')}</option>
                       </select>
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">
-                        Baslangic Tarihi
+                        {t('Start Date')}
                       </label>
                       <input
                         type="date"
@@ -460,7 +466,7 @@ export function GoalDetail({
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">
-                        Bitis Tarihi
+                        {t('End Date')}
                       </label>
                       <input
                         type="date"
@@ -472,7 +478,7 @@ export function GoalDetail({
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-600">İlerleme (%)</label>
+                      <label className="text-sm text-gray-600">{t('Progress (%)')}</label>
                       <input
                         type="number"
                         min="0"
@@ -486,7 +492,7 @@ export function GoalDetail({
                     </div>
                     <div className="md:col-span-2">
                       <label className="text-sm text-gray-600">
-                        Atanan Kisiler (virgul ile)
+                        {t('Assigned People (comma separated)')}
                       </label>
                       <input
                         value={(editableGoal?.assignedTo ?? []).join(', ')}
@@ -507,10 +513,10 @@ export function GoalDetail({
               )}
 
               <div>
-                <h3 className="mb-3">İlerleme Durumu</h3>
+                <h3 className="mb-3">{t('Progress Status')}</h3>
                 <div className="mb-2">
                   <div className="flex justify-between text-sm mb-2">
-                    <span>Toplam İlerleme</span>
+                    <span>{t('Total Progress')}</span>
                     <span>{goalData.progress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-4">
@@ -538,7 +544,7 @@ export function GoalDetail({
                     <Users className="w-5 h-5 text-gray-400 mt-1" />
                     <div>
                       <div className="text-sm text-gray-600 mb-1">
-                        Sorumlu Birim
+                        {t('Responsible Unit')}
                       </div>
                       <div>{goalData.responsibleUnit}</div>
                     </div>
@@ -548,10 +554,10 @@ export function GoalDetail({
                     <Calendar className="w-5 h-5 text-gray-400 mt-1" />
                     <div>
                       <div className="text-sm text-gray-600 mb-1">
-                        Başlangıç Tarihi
+                        {t('Start Date')}
                       </div>
                       <div>
-                        {new Date(goalData.startDate).toLocaleDateString('tr-TR')}
+                        {new Date(goalData.startDate).toLocaleDateString(locale)}
                       </div>
                     </div>
                   </div>
@@ -560,10 +566,10 @@ export function GoalDetail({
                     <Calendar className="w-5 h-5 text-gray-400 mt-1" />
                     <div>
                       <div className="text-sm text-gray-600 mb-1">
-                        Bitiş Tarihi
+                        {t('End Date')}
                       </div>
                       <div>
-                        {new Date(goalData.endDate).toLocaleDateString('tr-TR')}
+                        {new Date(goalData.endDate).toLocaleDateString(locale)}
                       </div>
                     </div>
                   </div>
@@ -573,7 +579,7 @@ export function GoalDetail({
                   <div className="flex items-start gap-3">
                     <Target className="w-5 h-5 text-gray-400 mt-1" />
                     <div>
-                      <div className="text-sm text-gray-600 mb-1">Yıl</div>
+                      <div className="text-sm text-gray-600 mb-1">{t('Academic Year')}</div>
                       <div>
                         {formatAcademicYearRange(goalData.academicYearStart)}
                       </div>
@@ -584,13 +590,13 @@ export function GoalDetail({
                     <AlertCircle className="w-5 h-5 text-gray-400 mt-1" />
                     <div>
                       <div className="text-sm text-gray-600 mb-1">
-                        Son Güncelleme
+                        {t('Last Updated')}
                       </div>
                       <div className="text-sm">
-                        {new Date(goalData.updatedAt).toLocaleString('tr-TR')}
+                        {new Date(goalData.updatedAt).toLocaleString(locale)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        Güncelleyen: {goalData.updatedBy}
+                        {t('Updated By')}: {t(goalData.updatedBy)}
                       </div>
                     </div>
                   </div>
@@ -599,7 +605,7 @@ export function GoalDetail({
 
               {goalData.assignedTo && goalData.assignedTo.length > 0 && (
                 <div>
-                  <h3 className="mb-3">Atanan Kişiler</h3>
+                  <h3 className="mb-3">{t('Assigned People')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {goalData.assignedTo.map((person, idx) => (
                       <span
@@ -617,7 +623,7 @@ export function GoalDetail({
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="w-5 h-5 text-blue-600" />
-                    <span className="text-sm text-gray-600">KPI Sayısı</span>
+                    <span className="text-sm text-gray-600">{t('KPI Count')}</span>
                   </div>
                   <div className="text-2xl">{relatedKPIs.length}</div>
                 </div>
@@ -625,7 +631,7 @@ export function GoalDetail({
                   <div className="flex items-center gap-2 mb-2">
                     <ListTodo className="w-5 h-5 text-green-600" />
                     <span className="text-sm text-gray-600">
-                      Aksiyon Planı
+                      {t('Action Plans')}
                     </span>
                   </div>
                   <div className="text-2xl">{relatedActions.length}</div>
@@ -633,7 +639,7 @@ export function GoalDetail({
                 <div className="bg-purple-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="w-5 h-5 text-purple-600" />
-                    <span className="text-sm text-gray-600">Alt Hedef</span>
+                    <span className="text-sm text-gray-600">{t('Sub Goals')}</span>
                   </div>
                   <div className="text-2xl">{childGoals.length}</div>
                 </div>
@@ -655,7 +661,7 @@ export function GoalDetail({
                     </p>
                     <div className="mb-3">
                       <div className="flex justify-between text-sm mb-1">
-                        <span>İlerleme</span>
+                        <span>{t('Progress')}</span>
                         <span>
                           {kpi.currentValue} / {kpi.targetValue} {kpi.unit} (
                           {kpi.targetValue > 0
@@ -680,16 +686,16 @@ export function GoalDetail({
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>
-                        Son Tarih:{' '}
-                        {new Date(kpi.deadline).toLocaleDateString('tr-TR')}
+                        {t('Deadline')}:{' '}
+                        {new Date(kpi.deadline).toLocaleDateString(locale)}
                       </span>
-                      <span>Atanan: {kpi.assignedTo}</span>
+                      <span>{t('Assigned To')}: {kpi.assignedTo}</span>
                     </div>
                   </div>
                 ))
               ) : (
                 <p className="text-gray-500 text-center py-8">
-                  Bu hedefe bağlı KPI bulunamadı.
+                  {t('No KPIs were found for this goal.')}
                 </p>
               )}
             </div>
@@ -716,7 +722,7 @@ export function GoalDetail({
                                 : 'bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {action.status}
+                        {t(action.status)}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">
@@ -724,7 +730,7 @@ export function GoalDetail({
                     </p>
                     <div className="mb-3">
                       <div className="flex justify-between text-sm mb-1">
-                        <span>İlerleme</span>
+                        <span>{t('Progress')}</span>
                         <span>{action.progress}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
@@ -735,17 +741,17 @@ export function GoalDetail({
                       </div>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
-                      <span>Atanan: {action.assignedTo}</span>
+                      <span>{t('Assigned To')}: {action.assignedTo}</span>
                       <span>
-                        Son Tarih:{' '}
-                        {new Date(action.deadline).toLocaleDateString('tr-TR')}
+                        {t('Deadline')}:{' '}
+                        {new Date(action.deadline).toLocaleDateString(locale)}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
                 <p className="text-gray-500 text-center py-8">
-                  Bu hedefe bağlı aksiyon planı bulunamadı.
+                  {t('No action plans were found for this goal.')}
                 </p>
               )}
             </div>
@@ -755,11 +761,11 @@ export function GoalDetail({
             <div className="space-y-4">
               {parentGoal && (
                 <div>
-                  <h3 className="mb-3">Üst Hedef</h3>
+                  <h3 className="mb-3">{t('Parent Goal')}</h3>
                   <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">
-                        {parentGoal.level === 0 ? 'Ana Hedef' : 'Alt Hedef'}
+                        {parentGoal.level === 0 ? t('Main Goal') : t('Sub Goal')}
                       </span>
                       <span className="text-sm text-gray-500">
                         {parentGoal.id}
@@ -775,7 +781,7 @@ export function GoalDetail({
 
               {childGoals.length > 0 && (
                 <div>
-                  <h3 className="mb-3">Alt Hedefler ({childGoals.length})</h3>
+                  <h3 className="mb-3">{t('Sub Goals')} ({childGoals.length})</h3>
                   <div className="space-y-3">
                     {childGoals.map((child) => (
                       <div
@@ -785,7 +791,7 @@ export function GoalDetail({
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                              {child.level === 1 ? 'Alt Hedef' : 'Alt Item'}
+                              {child.level === 1 ? t('Sub Goal') : t('Sub Item')}
                             </span>
                             <span className="text-sm text-gray-500">
                               {child.id}
@@ -796,7 +802,7 @@ export function GoalDetail({
                               child.status
                             )}`}
                           >
-                            {child.status}
+                            {t(child.status)}
                           </span>
                         </div>
                         <h4>{child.title}</h4>
@@ -805,7 +811,7 @@ export function GoalDetail({
                         </p>
                         <div className="mt-3">
                           <div className="flex justify-between text-xs mb-1">
-                            <span>İlerleme</span>
+                            <span>{t('Progress')}</span>
                             <span>{child.progress}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -823,7 +829,7 @@ export function GoalDetail({
 
               {!parentGoal && childGoals.length === 0 && (
                 <p className="text-gray-500 text-center py-8">
-                  Bu hedefin hiyerarşik ilişkisi bulunmuyor.
+                  {t('This goal has no hierarchy relationship yet.')}
                 </p>
               )}
             </div>

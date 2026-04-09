@@ -198,6 +198,153 @@ const seedUnitOwners = [
   },
 ];
 
+seedGoals.push(
+  {
+    id: 'G101',
+    title: 'Enhance Research Quality and Impact',
+    description:
+      'Increase publications in high-impact journals and strengthen research collaborations across departments.',
+    academic_year_start: 2024,
+    status: 'Completed',
+    priority: 'Critical',
+    responsible_unit: 'Research Department',
+    parent_id: null,
+    level: 0,
+    created_at: '2024-09-15T10:00:00Z',
+    updated_at: '2025-01-20T14:30:00Z',
+    updated_by: 'Dr. Sarah Johnson',
+    start_date: '2024-09-01',
+    end_date: '2025-01-31',
+    progress: 92,
+    assigned_to: JSON.stringify(['Dr. Sarah Johnson', 'Prof. Michael Anderson']),
+  },
+  {
+    id: 'G102',
+    title: 'Improve Student Success and Retention',
+    description:
+      'Enhance academic support services and reduce dropout rates through comprehensive student support.',
+    academic_year_start: 2024,
+    status: 'Completed',
+    priority: 'Critical',
+    responsible_unit: 'Academic Affairs',
+    parent_id: null,
+    level: 0,
+    created_at: '2024-09-15T10:00:00Z',
+    updated_at: '2025-01-18T12:15:00Z',
+    updated_by: 'Prof. Emily Chen',
+    start_date: '2024-09-01',
+    end_date: '2025-01-31',
+    progress: 88,
+    assigned_to: JSON.stringify(['Prof. Emily Chen', 'Dr. James Wilson']),
+  },
+  {
+    id: 'G103',
+    title: 'Digital Transformation Initiative',
+    description:
+      'Modernize IT infrastructure and implement digital tools across all departments.',
+    academic_year_start: 2024,
+    status: 'Completed',
+    priority: 'High',
+    responsible_unit: 'IT Department',
+    parent_id: null,
+    level: 0,
+    created_at: '2024-09-15T10:00:00Z',
+    updated_at: '2025-01-25T09:15:00Z',
+    updated_by: 'John Smith',
+    start_date: '2024-09-01',
+    end_date: '2025-01-31',
+    progress: 94,
+    assigned_to: JSON.stringify(['John Smith', 'Maria Garcia']),
+  }
+);
+
+seedAssignments.push(
+  {
+    id: 'ASG101',
+    entity_type: 'Goal',
+    entity_id: 'G101',
+    academic_year_start: 2024,
+    assigned_to: 'Dr. Sarah Johnson',
+    assigned_by: 'Strategy Office Admin',
+    unit: 'Research Department',
+    assigned_date: '2024-09-15T10:00:00Z',
+    deadline: '2025-01-31',
+    status: 'Completed',
+    notes: 'Historical demo assignment for copy-year testing',
+  },
+  {
+    id: 'ASG102',
+    entity_type: 'Goal',
+    entity_id: 'G102',
+    academic_year_start: 2024,
+    assigned_to: 'Prof. Emily Chen',
+    assigned_by: 'Strategy Office Admin',
+    unit: 'Academic Affairs',
+    assigned_date: '2024-09-15T10:00:00Z',
+    deadline: '2025-01-31',
+    status: 'Completed',
+    notes: 'Historical demo assignment for copy-year testing',
+  },
+  {
+    id: 'ASG103',
+    entity_type: 'Goal',
+    entity_id: 'G103',
+    academic_year_start: 2024,
+    assigned_to: 'John Smith',
+    assigned_by: 'Strategy Office Admin',
+    unit: 'IT Department',
+    assigned_date: '2024-09-15T10:00:00Z',
+    deadline: '2025-01-31',
+    status: 'Completed',
+    notes: 'Historical demo assignment for copy-year testing',
+  }
+);
+
+seedUnitOwners.push(
+  {
+    academic_year_start: 2024,
+    unit_name: 'Research Department',
+    owner_name: 'Dr. Sarah Johnson',
+    updated_at: '2024-09-15T10:00:00Z',
+    updated_by: 'Strategy Office Admin',
+  },
+  {
+    academic_year_start: 2024,
+    unit_name: 'Academic Affairs',
+    owner_name: 'Prof. Emily Chen',
+    updated_at: '2024-09-15T10:00:00Z',
+    updated_by: 'Strategy Office Admin',
+  },
+  {
+    academic_year_start: 2024,
+    unit_name: 'IT Department',
+    owner_name: 'John Smith',
+    updated_at: '2024-09-15T10:00:00Z',
+    updated_by: 'Strategy Office Admin',
+  },
+  {
+    academic_year_start: 2026,
+    unit_name: 'Research Department',
+    owner_name: 'Annie Case',
+    updated_at: '2026-09-01T08:00:00Z',
+    updated_by: 'Strategy Office Admin',
+  },
+  {
+    academic_year_start: 2026,
+    unit_name: 'Academic Affairs',
+    owner_name: 'Lisa Carter',
+    updated_at: '2026-09-01T08:00:00Z',
+    updated_by: 'Strategy Office Admin',
+  },
+  {
+    academic_year_start: 2026,
+    unit_name: 'IT Department',
+    owner_name: 'Alex Morgan',
+    updated_at: '2026-09-01T08:00:00Z',
+    updated_by: 'Strategy Office Admin',
+  }
+);
+
 function createHttpError(statusCode, message) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -291,6 +438,57 @@ function rowToUnitOwner(row) {
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
   };
+}
+
+function slugify(value) {
+  const normalized = String(value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || 'user';
+}
+
+function buildViewerDirectory(goals, assignments, unitOwners) {
+  const accountMap = new Map();
+
+  const registerAccount = (name, unit) => {
+    const trimmedName = String(name ?? '').trim();
+    const trimmedUnit = String(unit ?? '').trim();
+    if (!trimmedName) return;
+
+    const key = `${trimmedName.toLowerCase()}::${trimmedUnit.toLowerCase()}`;
+    if (accountMap.has(key)) return;
+
+    const id = `${slugify(trimmedName)}-${slugify(trimmedUnit || 'general')}`;
+    accountMap.set(key, {
+      id,
+      name: trimmedName,
+      unit: trimmedUnit || undefined,
+    });
+  };
+
+  for (const unitOwner of unitOwners) {
+    registerAccount(unitOwner.ownerName, unitOwner.unitName);
+  }
+
+  for (const assignment of assignments) {
+    registerAccount(assignment.assignedTo, assignment.unit);
+  }
+
+  for (const goal of goals) {
+    for (const assignee of goal.assignedTo ?? []) {
+      registerAccount(assignee, goal.responsibleUnit);
+    }
+  }
+
+  return [...accountMap.values()].sort((left, right) => {
+    const nameOrder = left.name.localeCompare(right.name);
+    if (nameOrder !== 0) return nameOrder;
+    return (left.unit ?? '').localeCompare(right.unit ?? '');
+  });
 }
 
 function generateId(prefix) {
@@ -394,6 +592,12 @@ async function seedTableIfEmpty(client, tableName, seeds, insertSql, mapSeedToVa
   }
 
   console.log(`Seeded ${tableName} table with ${seeds.length} rows`);
+}
+
+async function ensureSeedRows(client, seeds, insertSql, mapSeedToValues) {
+  for (const seed of seeds) {
+    await client.query(insertSql, mapSeedToValues(seed));
+  }
 }
 
 async function getGoalRowById(client, id) {
@@ -529,9 +733,8 @@ export async function initDb() {
     await pool.query(createAssignmentsTableSql);
     await pool.query(createUnitOwnersTableSql);
 
-    await seedTableIfEmpty(
+    await ensureSeedRows(
       pool,
-      'goals',
       seedGoals,
       `INSERT INTO goals (
         id, title, description, academic_year_start, status, priority,
@@ -539,7 +742,8 @@ export async function initDb() {
         start_date, end_date, progress, assigned_to
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb
-      )`,
+      )
+      ON CONFLICT (id) DO NOTHING`,
       (goal) => [
         goal.id,
         goal.title,
@@ -560,16 +764,16 @@ export async function initDb() {
       ]
     );
 
-    await seedTableIfEmpty(
+    await ensureSeedRows(
       pool,
-      'assignments',
       seedAssignments,
       `INSERT INTO assignments (
         id, entity_type, entity_id, academic_year_start, assigned_to,
         assigned_by, unit, assigned_date, deadline, status, notes
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
-      )`,
+      )
+      ON CONFLICT (id) DO NOTHING`,
       (assignment) => [
         assignment.id,
         assignment.entity_type,
@@ -585,15 +789,15 @@ export async function initDb() {
       ]
     );
 
-    await seedTableIfEmpty(
+    await ensureSeedRows(
       pool,
-      'unit_owners',
       seedUnitOwners,
       `INSERT INTO unit_owners (
         academic_year_start, unit_name, owner_name, updated_at, updated_by
       ) VALUES (
         $1, $2, $3, $4, $5
-      )`,
+      )
+      ON CONFLICT (academic_year_start, unit_name) DO NOTHING`,
       (unitOwner) => [
         unitOwner.academic_year_start,
         unitOwner.unit_name,
@@ -942,6 +1146,42 @@ export async function getUnitOwners(academicYearStart = null) {
   const values = academicYearStart == null ? [] : [academicYearStart];
   const { rows } = await pool.query(query, values);
   return rows.map(rowToUnitOwner);
+}
+
+export async function getViewerDirectory(academicYearStart = null) {
+  if (!pool) {
+    const goals = seedGoals
+      .map(rowToGoal)
+      .filter((goal) =>
+        academicYearStart == null ? true : goal.academicYearStart === academicYearStart
+      );
+    const assignments = seedAssignments
+      .map(rowToAssignment)
+      .filter((assignment) =>
+        academicYearStart == null
+          ? true
+          : assignment.academicYearStart === academicYearStart
+      );
+    const unitOwners = seedUnitOwners
+      .map(rowToUnitOwner)
+      .filter((unitOwner) =>
+        academicYearStart == null
+          ? true
+          : unitOwner.academicYearStart === academicYearStart
+      );
+
+    return buildViewerDirectory(goals, assignments, unitOwners);
+  }
+
+  const [goals, assignments, unitOwners] = await Promise.all([
+    getGoals(academicYearStart),
+    getAssignments({
+      academicYearStart,
+    }),
+    getUnitOwners(academicYearStart),
+  ]);
+
+  return buildViewerDirectory(goals, assignments, unitOwners);
 }
 
 export async function upsertUnitOwner(payload) {
