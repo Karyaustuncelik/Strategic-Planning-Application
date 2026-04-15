@@ -634,7 +634,7 @@ export function AssignmentManagement({
             const isOverdue =
               new Date(assignment.deadline) < new Date() &&
               assignment.status !== 'Completed';
-            const canManage = assignment.assignedTo === userName || isAdmin;
+            const canManage = isAdmin;
             const isUpdating = updatingAssignmentId === assignment.id;
 
             return (
@@ -791,7 +791,7 @@ export function AssignmentManagement({
               ) : (
                 <li>• Only tasks assigned to your login are shown here</li>
               )}
-              <li>• Assignees can accept, reject, or complete their assignments</li>
+              <li>• Assigned items appear directly in the assignee account</li>
               <li>• Goal titles now come from the backend for the selected year</li>
               <li>• New assignments immediately update backend goal ownership</li>
             </ul>

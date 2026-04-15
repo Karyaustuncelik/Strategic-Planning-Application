@@ -26,6 +26,15 @@ export interface AuthOptions {
   viewerAccounts: ViewerAccount[];
 }
 
+export interface GoalTreeAssignmentResult {
+  academicYearStart: number;
+  assignedTo: string;
+  affectedGoals: number;
+  affectedKPIs: number;
+  affectedActions: number;
+  affectedMilestones: number;
+}
+
 export interface LoginPayload {
   loginMode: LoginMode;
   password: string;

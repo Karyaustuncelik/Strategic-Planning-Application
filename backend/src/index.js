@@ -12,6 +12,7 @@ import {
   getViewerDirectory,
   upsertUnitOwner,
   copyAcademicYearGoals,
+  assignGoalTrees,
   deleteGoal,
   pool,
 } from './db.js';
@@ -334,6 +335,15 @@ app.post('/api/goals/copy-year', async (req, res) => {
     res.status(201).json(result);
   } catch (err) {
     handleApiError(res, err, 'POST /api/goals/copy-year failed');
+  }
+});
+
+app.post('/api/goals/assign-tree', async (req, res) => {
+  try {
+    const result = await assignGoalTrees(req.body ?? {});
+    res.json(result);
+  } catch (err) {
+    handleApiError(res, err, 'POST /api/goals/assign-tree failed');
   }
 });
 

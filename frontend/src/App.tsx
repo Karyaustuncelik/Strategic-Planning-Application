@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   Calendar,
+  Copy,
   Flag,
   LayoutDashboard,
   ListChecks,
@@ -20,6 +21,7 @@ import { TimelineView } from './components/TimelineView';
 import { MyAssignedGoals } from './components/MyAssignedGoals';
 import { MilestoneManagement } from './components/MilestoneManagement';
 import { AcademicCalendarEditor } from './components/AcademicCalendarEditor';
+import { UnassignedGoalsView } from './components/UnassignedGoalsView';
 import { Login } from './components/Login';
 import {
   Select,
@@ -43,7 +45,7 @@ import {
   getCurrentAcademicYearStart,
   parseAcademicYearRange,
 } from './utils/academicPeriod';
-import { isAdminRole, isViewerRole } from './lib/access';
+import { isViewerRole } from './lib/access';
 
 type AppView =
   | 'dashboard'
@@ -54,6 +56,7 @@ type AppView =
   | 'timeline'
   | 'myGoals'
   | 'milestones'
+  | 'unassignedGoals'
   | 'calendarSettings';
 
 interface NavigationItem {
@@ -161,6 +164,7 @@ export default function App() {
     return [
       { id: 'dashboard', label: t('Dashboard'), icon: LayoutDashboard },
       { id: 'hierarchy', label: t('Goal Hierarchy'), icon: ListTree },
+      { id: 'unassignedGoals', label: t('Unassigned Goals'), icon: Copy },
       { id: 'myGoals', label: t('My Assigned Goals'), icon: Target },
       { id: 'assignments', label: t('Assignments'), icon: ListChecks },
       { id: 'milestones', label: t('Milestones'), icon: Flag },
@@ -412,6 +416,14 @@ export default function App() {
                 selectedAcademicYearStart={selectedAcademicYearStart}
                 isReadOnly={isReadOnly}
                 navigationFilter={hierarchyNavigationFilter}
+              />
+            )}
+
+            {currentView === 'unassignedGoals' && !isViewer && (
+              <UnassignedGoalsView
+                userName={currentUser.name}
+                selectedAcademicYearStart={selectedAcademicYearStart}
+                isReadOnly={isReadOnly}
               />
             )}
 

@@ -21,7 +21,6 @@ import {
   Filter,
   ArrowUpDown,
   Plus,
-  Copy,
   Trash2,
 } from 'lucide-react';
 import {
@@ -30,7 +29,6 @@ import {
   getAcademicYearDateRange,
 } from '../utils/academicPeriod';
 import {
-  copyAcademicYearGoals,
   createActionPlan,
   createGoal,
   createKPI,
@@ -127,12 +125,6 @@ export function HierarchyView({
   const [kpiDraft, setKpiDraft] = useState<KpiDraft | null>(null);
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
   const [unitOwnerMap, setUnitOwnerMap] = useState<Map<string, string>>(new Map());
-  const [copySourceYearStart, setCopySourceYearStart] = useState(
-    selectedAcademicYearStart - 1
-  );
-  const [copyCandidates, setCopyCandidates] = useState<Goal[]>([]);
-  const [selectedCopyGoalIds, setSelectedCopyGoalIds] = useState<string[]>([]);
-  const [isCopyingGoals, setIsCopyingGoals] = useState(false);
 
   const units = [
     'Research Department',
@@ -143,15 +135,6 @@ export function HierarchyView({
     'Finance Department',
     'Human Resources',
   ];
-  const copyYearOptions = [
-    selectedAcademicYearStart - 3,
-    selectedAcademicYearStart - 2,
-    selectedAcademicYearStart - 1,
-  ].filter((year, index, list) => year > 0 && list.indexOf(year) === index);
-
-  useEffect(() => {
-    setCopySourceYearStart(selectedAcademicYearStart - 1);
-  }, [selectedAcademicYearStart]);
 
   useEffect(() => {
     let isMounted = true;
@@ -220,34 +203,6 @@ export function HierarchyView({
       isMounted = false;
     };
   }, [selectedAcademicYearStart]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadCopyCandidates = async () => {
-      try {
-        const data = await fetchGoals({
-          academicYearStart: copySourceYearStart,
-        });
-        if (!isMounted) return;
-        const mainGoalCandidates = data.filter(
-          (goal) => goal.level === 0 && !goal.parentId
-        );
-        setCopyCandidates(mainGoalCandidates);
-        setSelectedCopyGoalIds(mainGoalCandidates.map((goal) => goal.id));
-      } catch {
-        if (!isMounted) return;
-        setCopyCandidates([]);
-        setSelectedCopyGoalIds([]);
-      }
-    };
-
-    loadCopyCandidates();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [copySourceYearStart]);
 
   const handleAddFilter = () => {
     if (selectedFilterType && searchValue.trim()) {
@@ -716,50 +671,6 @@ export function HierarchyView({
     });
   };
 
-  const handleToggleCopyGoal = (goalId: string) => {
-    setSelectedCopyGoalIds((prev) =>
-      prev.includes(goalId)
-        ? prev.filter((item) => item !== goalId)
-        : [...prev, goalId]
-    );
-  };
-
-  const handleCopyGoals = async () => {
-    if (selectedCopyGoalIds.length === 0) {
-      setGoalError('Select at least one goal to copy.');
-      return;
-    }
-
-    setIsCopyingGoals(true);
-    setGoalError(null);
-
-    try {
-      await copyAcademicYearGoals({
-        sourceAcademicYearStart: copySourceYearStart,
-        targetAcademicYearStart: selectedAcademicYearStart,
-        goalIds: selectedCopyGoalIds,
-        requestedBy: 'Strategy Office Admin',
-      });
-
-      const [goalData, kpiData, actionData] = await Promise.all([
-        fetchGoals({ academicYearStart: selectedAcademicYearStart }),
-        fetchKPIs({ academicYearStart: selectedAcademicYearStart }),
-        fetchActionPlans({ academicYearStart: selectedAcademicYearStart }),
-      ]);
-
-      setGoals(goalData);
-      setKpis(kpiData);
-      setActions(actionData);
-    } catch (copyError) {
-      setGoalError(
-        copyError instanceof Error
-          ? copyError.message
-          : 'Failed to copy goals from previous academic year'
-      );
-    } finally {
-      setIsCopyingGoals(false);
-    }
-  };
   const handleDeleteGoal = async (id: string, title: string) => {
     if (!window.confirm(`Are you sure you want to delete the goal: "${title}"? This will also delete all sub-goals, KPIs, and actions.`)) {
       return;
@@ -960,34 +871,6 @@ export function HierarchyView({
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-              <Copy className="h-4 w-4" />
-              <span>Copy Previous Year Goals</span>
-            </div>
-            <select
-              value={copySourceYearStart}
-              onChange={(e) => setCopySourceYearStart(Number(e.target.value))}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-              disabled={isReadOnly}
-            >
-              {copyYearOptions.map((year) => (
-                <option key={year} value={year}>
-                  {formatAcademicYearRange(year)}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={handleCopyGoals}
-              disabled={isReadOnly || isCopyingGoals || selectedCopyGoalIds.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              <Copy className="h-4 w-4" />
-              {isCopyingGoals ? 'Copying...' : 'Copy Selected'}
-            </button>
-          </div>
-
           <div className="flex flex-1 flex-wrap items-center gap-2 xl:justify-end">
             <div className="min-w-[220px] flex-1 sm:flex-none">
               <input
@@ -1067,34 +950,6 @@ export function HierarchyView({
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {copyCandidates.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              No main goals found for {formatAcademicYearRange(copySourceYearStart)}.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {copyCandidates.map((goal) => (
-                <label
-                  key={goal.id}
-                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors ${
-                    selectedCopyGoalIds.includes(goal.id)
-                      ? 'border-blue-200 bg-blue-50 text-blue-800'
-                      : 'border-slate-200 bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCopyGoalIds.includes(goal.id)}
-                    onChange={() => handleToggleCopyGoal(goal.id)}
-                    disabled={isReadOnly}
-                    className="h-4 w-4"
-                  />
-                  <span className="font-medium">{goal.title}</span>
-                </label>
-              ))}
-            </div>
-          )}
-
           {activeFilters.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {activeFilters.map((filter, index) => (

@@ -1256,18 +1256,18 @@ export async function copyAcademicYearGoals(payload) {
 
     const selectedRootIds =
       selectedGoalIds.length > 0
-        ? new Set(selectedGoalIds)
-        : new Set(
-            sourceGoalRows
-              .filter((row) => row.level === 0 || row.parent_id == null)
-              .map((row) => row.id)
-          );
-    const filteredGoalRows = sourceGoalRows.filter(
-      (row) => row.parent_id == null || selectedRootIds.has(row.parent_id) || selectedRootIds.has(row.id)
+        ? selectedGoalIds
+        : sourceGoalRows
+            .filter((row) => row.level === 0 || row.parent_id == null)
+            .map((row) => row.id);
+    const expandedSourceGoalIds = new Set(
+      expandGoalIdsWithDescendants(sourceGoalRows, selectedRootIds)
+    );
+    const filteredGoalRows = sourceGoalRows.filter((row) =>
+      expandedSourceGoalIds.has(row.id)
     );
     const sourceGoalIds = filteredGoalRows.map((row) => row.id);
     const goalIdMap = new Map();
-    const unitOwnerMap = await getUnitOwnerMap(dbClient, targetAcademicYearStart);
     const yearOffset = targetAcademicYearStart - sourceAcademicYearStart;
     const copiedAt = new Date().toISOString();
 
@@ -1276,15 +1276,10 @@ export async function copyAcademicYearGoals(payload) {
     }
 
     for (const sourceRow of filteredGoalRows) {
-      const assignedTo = resolveAssigneesForUnit(
-        unitOwnerMap,
-        sourceRow.responsible_unit,
-        parseJsonArray(sourceRow.assigned_to)
-      );
       const nextGoalId = goalIdMap.get(sourceRow.id);
       const nextParentId = sourceRow.parent_id ? goalIdMap.get(sourceRow.parent_id) : null;
 
-      const { rows } = await dbClient.query(
+      await dbClient.query(
         `INSERT INTO goals (
           id, title, description, academic_year_start, status, priority,
           responsible_unit, parent_id, level, created_at, updated_at, updated_by,
@@ -1308,31 +1303,9 @@ export async function copyAcademicYearGoals(payload) {
           shiftDateToAcademicYear(sourceRow.start_date, yearOffset),
           shiftDateToAcademicYear(sourceRow.end_date, yearOffset),
           0,
-          JSON.stringify(assignedTo),
+          JSON.stringify([]),
         ]
       );
-
-      for (const assignee of assignedTo) {
-        await dbClient.query(
-          `INSERT INTO assignments (
-            id, entity_type, entity_id, academic_year_start, assigned_to,
-            assigned_by, unit, assigned_date, deadline, status, notes
-          ) VALUES (
-            $1, 'Goal', $2, $3, $4, $5, $6, $7, $8, 'Pending', $9
-          )`,
-          [
-            generateId('ASG'),
-            rows[0].id,
-            targetAcademicYearStart,
-            assignee,
-            requestedBy,
-            sourceRow.responsible_unit,
-            copiedAt,
-            shiftDateToAcademicYear(sourceRow.end_date, yearOffset),
-            `Copied from academic year ${sourceAcademicYearStart}`,
-          ]
-        );
-      }
     }
 
     const { rows: sourceKpis } = await dbClient.query(
@@ -1349,11 +1322,10 @@ export async function copyAcademicYearGoals(payload) {
     }
 
     for (const sourceRow of sourceKpis) {
-      const assignee = unitOwnerMap.get(sourceRow.responsible_unit) ?? sourceRow.assigned_to;
       const nextKpiId = kpiIdMap.get(sourceRow.id);
       const nextGoalId = goalIdMap.get(sourceRow.goal_id);
 
-      const { rows } = await dbClient.query(
+      await dbClient.query(
         `INSERT INTO kpis (
           id, goal_id, name, description, target_value, current_value, unit,
           academic_year_start, responsible_unit, deadline, status, updated_at,
@@ -1375,31 +1347,9 @@ export async function copyAcademicYearGoals(payload) {
           'Not Started',
           copiedAt,
           requestedBy,
-          assignee,
+          null,
         ]
       );
-
-      if (assignee) {
-        await dbClient.query(
-          `INSERT INTO assignments (
-            id, entity_type, entity_id, academic_year_start, assigned_to,
-            assigned_by, unit, assigned_date, deadline, status, notes
-          ) VALUES (
-            $1, 'KPI', $2, $3, $4, $5, $6, $7, $8, 'Pending', $9
-          )`,
-          [
-            generateId('ASG'),
-            rows[0].id,
-            targetAcademicYearStart,
-            assignee,
-            requestedBy,
-            sourceRow.responsible_unit,
-            copiedAt,
-            shiftDateToAcademicYear(sourceRow.deadline, yearOffset),
-            `Copied from academic year ${sourceAcademicYearStart}`,
-          ]
-        );
-      }
     }
 
     const { rows: sourceActions } = await dbClient.query(
@@ -1412,11 +1362,10 @@ export async function copyAcademicYearGoals(payload) {
     );
 
     for (const sourceRow of sourceActions) {
-      const assignee = unitOwnerMap.get(sourceRow.responsible_unit) ?? sourceRow.assigned_to;
       const nextGoalId = goalIdMap.get(sourceRow.goal_id);
       const nextKpiId = sourceRow.kpi_id ? kpiIdMap.get(sourceRow.kpi_id) ?? null : null;
 
-      const { rows } = await dbClient.query(
+      await dbClient.query(
         `INSERT INTO action_plans (
           id, goal_id, kpi_id, title, description, responsible_unit, assigned_to,
           deadline, status, progress, created_at, updated_at, updated_by, notes,
@@ -1431,7 +1380,7 @@ export async function copyAcademicYearGoals(payload) {
           sourceRow.title,
           sourceRow.description,
           sourceRow.responsible_unit,
-          assignee,
+          '',
           shiftDateToAcademicYear(sourceRow.deadline, yearOffset),
           'Not Started',
           0,
@@ -1443,28 +1392,6 @@ export async function copyAcademicYearGoals(payload) {
           targetAcademicYearStart,
         ]
       );
-
-      if (assignee) {
-        await dbClient.query(
-          `INSERT INTO assignments (
-            id, entity_type, entity_id, academic_year_start, assigned_to,
-            assigned_by, unit, assigned_date, deadline, status, notes
-          ) VALUES (
-            $1, 'Action Plan', $2, $3, $4, $5, $6, $7, $8, 'Pending', $9
-          )`,
-          [
-            generateId('ASG'),
-            rows[0].id,
-            targetAcademicYearStart,
-            assignee,
-            requestedBy,
-            sourceRow.responsible_unit,
-            copiedAt,
-            shiftDateToAcademicYear(sourceRow.deadline, yearOffset),
-            `Copied from academic year ${sourceAcademicYearStart}`,
-          ]
-        );
-      }
     }
 
     const { rows: sourceMilestones } = await dbClient.query(
@@ -1476,13 +1403,6 @@ export async function copyAcademicYearGoals(payload) {
     );
 
     for (const sourceRow of sourceMilestones) {
-      const { rows: linkedGoalRows } = await dbClient.query(
-        'SELECT responsible_unit FROM goals WHERE id = $1',
-        [sourceRow.linked_id]
-      );
-      const responsibleUnit = linkedGoalRows[0]?.responsible_unit ?? '';
-      const owner = unitOwnerMap.get(responsibleUnit) ?? sourceRow.owner;
-
       await dbClient.query(
         `INSERT INTO milestones (
           id, linked_type, linked_id, title, description, owner, due_date, status,
@@ -1497,7 +1417,7 @@ export async function copyAcademicYearGoals(payload) {
           goalIdMap.get(sourceRow.linked_id),
           sourceRow.title,
           sourceRow.description,
-          owner,
+          '',
           shiftDateToAcademicYear(sourceRow.due_date, yearOffset),
           sourceRow.definition_of_done,
           copiedAt,
@@ -1516,6 +1436,236 @@ export async function copyAcademicYearGoals(payload) {
       copiedKPIs: sourceKpis.length,
       copiedActions: sourceActions.length,
       copiedMilestones: sourceMilestones.length,
+    };
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
+function expandGoalIdsWithDescendants(goalRows, selectedGoalIds) {
+  const childrenByParent = new Map();
+
+  for (const row of goalRows) {
+    const parentKey = row.parent_id ?? '__root__';
+    const children = childrenByParent.get(parentKey) ?? [];
+    children.push(row.id);
+    childrenByParent.set(parentKey, children);
+  }
+
+  const queue = [...selectedGoalIds];
+  const expandedIds = new Set();
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || expandedIds.has(currentId)) continue;
+
+    expandedIds.add(currentId);
+    for (const childId of childrenByParent.get(currentId) ?? []) {
+      queue.push(childId);
+    }
+  }
+
+  return [...expandedIds];
+}
+
+export async function assignGoalTrees(payload) {
+  const client = ensurePool();
+  const academicYearStart = toInt(
+    payload.academicYearStart ?? payload.academic_year_start,
+    'academicYearStart'
+  );
+  const assignedTo = String(payload.assignedTo ?? payload.assigned_to ?? '').trim();
+  const assignedBy = String(payload.assignedBy ?? payload.assigned_by ?? '').trim();
+  const selectedGoalIds = Array.isArray(payload.goalIds ?? payload.goal_ids)
+    ? [...new Set((payload.goalIds ?? payload.goal_ids).map((item) => String(item).trim()).filter(Boolean))]
+    : [];
+
+  if (academicYearStart == null) {
+    throw createHttpError(400, 'academicYearStart is required');
+  }
+  if (!assignedTo) {
+    throw createHttpError(400, 'assignedTo is required');
+  }
+  if (!assignedBy) {
+    throw createHttpError(400, 'assignedBy is required');
+  }
+  if (!selectedGoalIds.length) {
+    throw createHttpError(400, 'goalIds is required');
+  }
+
+  const dbClient = await client.connect();
+
+  try {
+    await dbClient.query('BEGIN');
+
+    const goalRows = await getGoalRowsByAcademicYear(dbClient, academicYearStart);
+    const availableGoalIds = new Set(goalRows.map((row) => row.id));
+    const validSelectedGoalIds = selectedGoalIds.filter((goalId) =>
+      availableGoalIds.has(goalId)
+    );
+
+    if (!validSelectedGoalIds.length) {
+      throw createHttpError(404, 'No matching goals found for the selected year');
+    }
+
+    const affectedGoalIds = expandGoalIdsWithDescendants(
+      goalRows,
+      validSelectedGoalIds
+    );
+    const affectedGoalRows = goalRows.filter((row) => affectedGoalIds.includes(row.id));
+    const assignedAt = new Date().toISOString();
+
+    const { rows: relatedKpis } = await dbClient.query(
+      `SELECT *
+        FROM kpis
+        WHERE academic_year_start = $1
+          AND goal_id = ANY($2::text[])`,
+      [academicYearStart, affectedGoalIds]
+    );
+    const { rows: relatedActions } = await dbClient.query(
+      `SELECT *
+        FROM action_plans
+        WHERE academic_year_start = $1
+          AND goal_id = ANY($2::text[])`,
+      [academicYearStart, affectedGoalIds]
+    );
+    const { rows: relatedMilestones } = await dbClient.query(
+      `SELECT *
+        FROM milestones
+        WHERE linked_id = ANY($1::text[])`,
+      [affectedGoalIds]
+    );
+    const trackedEntityIds = [
+      ...affectedGoalIds,
+      ...relatedKpis.map((row) => row.id),
+      ...relatedActions.map((row) => row.id),
+    ];
+
+    if (trackedEntityIds.length > 0) {
+      await dbClient.query(
+        `DELETE FROM assignments
+          WHERE academic_year_start = $1
+            AND entity_id = ANY($2::text[])`,
+        [academicYearStart, trackedEntityIds]
+      );
+    }
+
+    for (const goalRow of affectedGoalRows) {
+      await dbClient.query(
+        `UPDATE goals
+          SET assigned_to = $2::jsonb,
+              updated_at = $3,
+              updated_by = $4
+        WHERE id = $1`,
+        [goalRow.id, JSON.stringify([assignedTo]), assignedAt, assignedBy]
+      );
+
+      await dbClient.query(
+        `INSERT INTO assignments (
+          id, entity_type, entity_id, academic_year_start, assigned_to,
+          assigned_by, unit, assigned_date, deadline, status, notes
+        ) VALUES (
+          $1, 'Goal', $2, $3, $4, $5, $6, $7, $8, 'Accepted', $9
+        )`,
+        [
+          generateId('ASG'),
+          goalRow.id,
+          academicYearStart,
+          assignedTo,
+          assignedBy,
+          goalRow.responsible_unit,
+          assignedAt,
+          goalRow.end_date,
+          'Assigned from unassigned goals',
+        ]
+      );
+    }
+
+    for (const kpiRow of relatedKpis) {
+      await dbClient.query(
+        `UPDATE kpis
+          SET assigned_to = $2,
+              updated_at = $3,
+              updated_by = $4
+        WHERE id = $1`,
+        [kpiRow.id, assignedTo, assignedAt, assignedBy]
+      );
+
+      await dbClient.query(
+        `INSERT INTO assignments (
+          id, entity_type, entity_id, academic_year_start, assigned_to,
+          assigned_by, unit, assigned_date, deadline, status, notes
+        ) VALUES (
+          $1, 'KPI', $2, $3, $4, $5, $6, $7, $8, 'Accepted', $9
+        )`,
+        [
+          generateId('ASG'),
+          kpiRow.id,
+          academicYearStart,
+          assignedTo,
+          assignedBy,
+          kpiRow.responsible_unit,
+          assignedAt,
+          kpiRow.deadline,
+          'Assigned from unassigned goals',
+        ]
+      );
+    }
+
+    for (const actionRow of relatedActions) {
+      await dbClient.query(
+        `UPDATE action_plans
+          SET assigned_to = $2,
+              updated_at = $3,
+              updated_by = $4
+        WHERE id = $1`,
+        [actionRow.id, assignedTo, assignedAt, assignedBy]
+      );
+
+      await dbClient.query(
+        `INSERT INTO assignments (
+          id, entity_type, entity_id, academic_year_start, assigned_to,
+          assigned_by, unit, assigned_date, deadline, status, notes
+        ) VALUES (
+          $1, 'Action Plan', $2, $3, $4, $5, $6, $7, $8, 'Accepted', $9
+        )`,
+        [
+          generateId('ASG'),
+          actionRow.id,
+          academicYearStart,
+          assignedTo,
+          assignedBy,
+          actionRow.responsible_unit,
+          assignedAt,
+          actionRow.deadline,
+          'Assigned from unassigned goals',
+        ]
+      );
+    }
+
+    for (const milestoneRow of relatedMilestones) {
+      await dbClient.query(
+        `UPDATE milestones
+          SET owner = $2,
+              updated_at = $3,
+              updated_by = $4
+        WHERE id = $1`,
+        [milestoneRow.id, assignedTo, assignedAt, assignedBy]
+      );
+    }
+
+    await dbClient.query('COMMIT');
+
+    return {
+      academicYearStart,
+      assignedTo,
+      affectedGoals: affectedGoalRows.length,
+      affectedKPIs: relatedKpis.length,
+      affectedActions: relatedActions.length,
+      affectedMilestones: relatedMilestones.length,
     };
   } catch (err) {
     await dbClient.query('ROLLBACK');
