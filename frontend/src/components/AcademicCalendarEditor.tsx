@@ -278,7 +278,7 @@ export function AcademicCalendarEditor({
                 </span>
               </div>
               <p className="text-sm text-gray-600">
-                Goals and copied work can be assigned automatically to these owners.
+                Use these owners as a reference when assigning copied work manually.
               </p>
             </div>
 

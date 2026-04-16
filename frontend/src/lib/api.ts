@@ -4,6 +4,7 @@ import type {
   AuthOptions,
   AuthSession,
   Goal,
+  GoalTreeAssignmentResult,
   KPI,
   LoginPayload,
   Milestone,
@@ -222,6 +223,13 @@ export type CopyAcademicYearGoalsResult = {
   copiedMilestones: number;
 };
 
+export type AssignGoalTreesPayload = {
+  academicYearStart: number;
+  goalIds: string[];
+  assignedTo: string;
+  assignedBy: string;
+};
+
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     headers: {
@@ -288,6 +296,13 @@ export function fetchGoalById(goalId: string) {
 
 export function copyAcademicYearGoals(payload: CopyAcademicYearGoalsPayload) {
   return apiRequest<CopyAcademicYearGoalsResult>(API_PREFIX + '/goals/copy-year', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function assignGoalTrees(payload: AssignGoalTreesPayload) {
+  return apiRequest<GoalTreeAssignmentResult>(API_PREFIX + '/goals/assign-tree', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
