@@ -117,12 +117,19 @@ app.post(
         return res.redirect(`${CLIENT_URL}/login?error=sso_failed`);
       }
       const token = generateJwt(user);
-      return res.redirect(`${CLIENT_URL}/login/success?token=${token}`);
+      res.cookie('spu_sso_token', token, {
+        httpOnly: false,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
+        path: '/'
+      });
+      return res.redirect(CLIENT_URL + '/');
     })(req, res, next);
   }
 );
 
-// 3. Production callback (kampüs proxy /spu prefix'ini siler, nginx /saml/ → /api/auth/saml/)
+// 3. Production callback
 app.post(
   '/api/auth/saml/module.php/saml/sp/saml2-acs.php/default-sp',
   (req, res, next) => {
@@ -132,7 +139,14 @@ app.post(
         return res.redirect(`${CLIENT_URL}/login?error=sso_failed`);
       }
       const token = generateJwt(user);
-      return res.redirect(`${CLIENT_URL}/login/success?token=${token}`);
+      res.cookie('spu_sso_token', token, {
+        httpOnly: false,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
+        path: '/'
+      });
+      return res.redirect(CLIENT_URL + '/');
     })(req, res, next);
   }
 );

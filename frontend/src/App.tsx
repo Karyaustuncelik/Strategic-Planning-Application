@@ -124,21 +124,22 @@ export default function App() {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   }, [currentUser]);
 
-  // SSO callback: /login/success?token=...
+  // SSO callback: backend cookie 'spu_sso_token' set eder, burası okur
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (!token) return;
+    const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('spu_sso_token='));
+    if (!match) return;
+
+    const token = match.split('=').slice(1).join('=');
+    // Cookie'yi hemen sil
+    document.cookie = 'spu_sso_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 
     try {
-      // JWT base64url → base64 dönüşümü (atob standart base64 bekler)
       const payloadBase64Url = token.split('.')[1];
       const payloadBase64 = payloadBase64Url
         .replace(/-/g, '+')
         .replace(/_/g, '/')
         .padEnd(Math.ceil(payloadBase64Url.length / 4) * 4, '=');
       const payload = JSON.parse(atob(payloadBase64));
-
       const session: AuthSession = {
         id: payload.email,
         name: payload.name || payload.email,
@@ -146,8 +147,6 @@ export default function App() {
         loginMode: 'sso',
       };
       setCurrentUser(session);
-      // URL'den token parametresini temizle
-      window.history.replaceState({}, '', window.location.pathname.replace(/\/login\/success\/?$/, '/'));
     } catch (e) {
       console.error('SSO token parse failed', e);
     }
