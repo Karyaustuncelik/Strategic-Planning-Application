@@ -114,7 +114,7 @@ app.post(
     passport.authenticate('saml', { session: false }, (err, user) => {
       if (err || !user) {
         console.error('SAML Authentication error:', err);
-        return res.redirect(`${CLIENT_URL}/login?error=sso_failed`);
+        return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
       }
       const token = generateJwt(user);
       res.cookie('spu_sso_token', token, {
@@ -124,7 +124,7 @@ app.post(
         maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
         path: '/'
       });
-      return res.redirect(CLIENT_URL + '/');
+      return res.redirect(303, CLIENT_URL + '/');
     })(req, res, next);
   }
 );
@@ -136,7 +136,7 @@ app.post(
     passport.authenticate('saml', { session: false }, (err, user) => {
       if (err || !user) {
         console.error('SAML Authentication error:', err);
-        return res.redirect(`${CLIENT_URL}/login?error=sso_failed`);
+        return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
       }
       const token = generateJwt(user);
       res.cookie('spu_sso_token', token, {
@@ -146,7 +146,7 @@ app.post(
         maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
         path: '/'
       });
-      return res.redirect(CLIENT_URL + '/');
+      return res.redirect(303, CLIENT_URL + '/');
     })(req, res, next);
   }
 );
