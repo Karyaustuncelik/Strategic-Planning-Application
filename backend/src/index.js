@@ -100,6 +100,8 @@ function generateJwt(user) {
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // SAML ACS POST için zorunlu - route'lardan ÖNCE olmalı
 app.use(passport.initialize());
 
 // ─── SAML Routes ──────────────────────────────────────────────────────────────
@@ -175,8 +177,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false })); // SAML ACS POST (application/x-www-form-urlencoded) için zorunlu
 
 function parseOptionalInt(value, fieldName) {
   if (value == null || value === '') return null;
