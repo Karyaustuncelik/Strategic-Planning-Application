@@ -175,7 +175,7 @@ export function Login({ onLogin }: LoginProps) {
               {/* University Account — SSO Kartı */}
               <div className="mt-4">
                 <a
-                  href="/api/auth/saml/login"
+                  href="/spu/api/auth/saml/login"
                   className="block rounded-3xl border border-slate-200 bg-white p-5 text-left transition-all hover:border-blue-200 hover:bg-slate-50"
                 >
                   <LogIn className="h-8 w-8 text-blue-600" />
