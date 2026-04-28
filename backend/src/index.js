@@ -59,6 +59,11 @@ if (!SSO_CERT) {
   console.warn('⚠️  SSO_CERT is not set — SAML authentication will not work.');
 }
 
+// node-saml PEM formatı bekler
+const IDP_CERT_PEM = SSO_CERT
+  ? `-----BEGIN CERTIFICATE-----\n${SSO_CERT}\n-----END CERTIFICATE-----`
+  : '';
+
 passport.use(
   new SamlStrategy(
     {
@@ -68,11 +73,9 @@ passport.use(
       callbackUrl: process.env.NODE_ENV === 'production'
         ? 'https://student-projects.sabanciuniv.edu/spu/saml/module.php/saml/sp/saml2-acs.php/default-sp'
         : 'http://localhost:9001/api/auth/saml/callback',
-      cert: SSO_CERT,
-      idpCert: SSO_CERT,
+      cert: IDP_CERT_PEM,
+      idpCert: IDP_CERT_PEM,
       validateInResponseTo: 'never',
-      wantAuthnResponseSigned: false,
-      wantAssertionsSigned: false,
     },
     (profile, done) => {
       const email =
