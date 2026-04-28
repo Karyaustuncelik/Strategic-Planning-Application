@@ -64,7 +64,7 @@ passport.use(
   new SamlStrategy(
     {
       entryPoint: 'https://login.microsoftonline.com/f1a26096-6ac1-45ab-86a3-938aa985bdf5/saml2',
-      issuer: 'https://student-projects.sabanciuniv.edu/spu',
+      issuer: 'https://student-projects.sabanciuniv.edu/spu/',
       idpIssuer: 'https://sts.windows.net/f1a26096-6ac1-45ab-86a3-938aa985bdf5/',
       callbackUrl: process.env.NODE_ENV === 'production'
         ? 'https://student-projects.sabanciuniv.edu/spu/saml/module.php/saml/sp/saml2-acs.php/default-sp'
