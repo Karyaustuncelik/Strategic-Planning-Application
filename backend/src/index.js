@@ -71,6 +71,7 @@ passport.use(
         : 'http://localhost:9001/api/auth/saml/callback',
       cert: SSO_CERT,
       idpCert: SSO_CERT,
+      validateInResponseTo: 'never',
     },
     (profile, done) => {
       const email =
@@ -170,6 +171,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // SAML ACS POST (application/x-www-form-urlencoded) için zorunlu
 
 function parseOptionalInt(value, fieldName) {
   if (value == null || value === '') return null;
