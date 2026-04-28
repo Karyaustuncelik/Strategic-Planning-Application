@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Building2, ShieldCheck, Users } from 'lucide-react';
+import { ArrowLeft, Building2, ShieldCheck, Users, LogIn } from 'lucide-react';
 import { fetchAuthOptions, login } from '../lib/api';
 import { useI18n } from '../i18n';
 import { AuthSession, LoginMode, ViewerAccount } from '../types';
@@ -170,6 +170,20 @@ export function Login({ onLogin }: LoginProps) {
                     {t('Assigned tasks, goals, timeline, and progress tracking.')}
                   </p>
                 </button>
+              </div>
+
+              {/* SSO Login */}
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  {t('University Account')}
+                </p>
+                <a
+                  href="/api/auth/saml/login"
+                  className="flex w-full items-center justify-center gap-3 rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-md"
+                >
+                  <LogIn className="h-5 w-5" />
+                  {t('Sign in with Sabancı University SSO')}
+                </a>
               </div>
             </div>
           </section>

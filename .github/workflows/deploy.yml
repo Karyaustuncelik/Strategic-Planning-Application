@@ -59,19 +59,18 @@ jobs:
           # Docker compose dosyasını taşı
           cp docker-compose-server.yml "$DEPLOY_DIR/"
 
-          # .env dosyasını oluştur (GITHUB_REPOSITORY artık küçük harf)
-          cat <<EOF > "$DEPLOY_DIR/.env"
-          PROJECT_NAME=${{ github.event.repository.name }}
-          GITHUB_REPOSITORY=$REPO_LOWER
-          FRONTEND_PORT=${{ secrets.FRONTEND_PORT }}
-          BACKEND_PORT=${{ secrets.BACKEND_PORT }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          EMAIL_USER=user12
-          EMAIL_PASS=pass12
-          EOF
+          # .env dosyası (echo ile yazılıyor - YAML parse hatası önlenir)
+          {
+            echo "PROJECT_NAME=${{ github.event.repository.name }}"
+            echo "GITHUB_REPOSITORY=$REPO_LOWER"
+            echo "FRONTEND_PORT=${{ secrets.FRONTEND_PORT }}"
+            echo "BACKEND_PORT=${{ secrets.BACKEND_PORT }}"
+            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}"
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
+            echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}"
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
+            echo "SSO_CERT=${{ secrets.SSO_CERT }}"
+          } > "$DEPLOY_DIR/.env"
 
           ## !!! DONT CHANGE BELOW !!! ###----------------------------
           

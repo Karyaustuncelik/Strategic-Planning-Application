@@ -4,7 +4,7 @@ export type UserRole =
   | 'Senior Management'
   | 'Viewer';
 
-export type LoginMode = 'admin' | 'viewer';
+export type LoginMode = 'admin' | 'viewer' | 'sso';
 
 export interface AuthSession {
   id?: string;

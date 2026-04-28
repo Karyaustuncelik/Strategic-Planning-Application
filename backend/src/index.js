@@ -1,4 +1,8 @@
 import express from 'express';
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as SamlStrategy } from '@node-saml/passport-saml';
+import jwt from 'jsonwebtoken';
 import {
   initDb,
   getGoals,
@@ -34,6 +38,8 @@ import {
 
 const app = express();
 const PORT = process.env.PORT || 9001;
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:8001';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const ADMIN_LOGIN_USERNAME = String(
   process.env.ADMIN_LOGIN_USERNAME || 'admin'
 ).trim();
@@ -47,6 +53,98 @@ const allowedOrigins = String(process.env.CORS_ORIGIN || '*')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+// ─── SAML Strategy ────────────────────────────────────────────────────────────
+const SSO_CERT = process.env.SSO_CERT;
+if (!SSO_CERT) {
+  console.warn('⚠️  SSO_CERT is not set — SAML authentication will not work.');
+}
+
+passport.use(
+  new SamlStrategy(
+    {
+      entryPoint: 'https://login.microsoftonline.com/f1a26096-6ac1-45ab-86a3-938aa985bdf5/saml2',
+      issuer: 'https://student-projects.sabanciuniv.edu/spu',
+      idpIssuer: 'https://sts.windows.net/f1a26096-6ac1-45ab-86a3-938aa985bdf5/',
+      callbackUrl: process.env.NODE_ENV === 'production'
+        ? 'https://student-projects.sabanciuniv.edu/spu/saml/module.php/saml/sp/saml2-acs.php/default-sp'
+        : 'http://localhost:9001/api/auth/saml/callback',
+      cert: SSO_CERT,
+      idpCert: SSO_CERT,
+    },
+    (profile, done) => {
+      const email =
+        profile.nameID ||
+        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
+        profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
+        'unknown@sabanciuniv.edu';
+      const name =
+        profile['http://schemas.microsoft.com/identity/claims/displayname'] ||
+        profile.nameID ||
+        'SPU User';
+      return done(null, { email, name, ...profile });
+    },
+    (_profile, done) => done(null)
+  )
+);
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+function generateJwt(user) {
+  return jwt.sign(
+    { email: user.email, name: user.name, role: 'Strategy Office' },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
+app.use(
+  session({
+    secret: JWT_SECRET,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// ─── SAML Routes ──────────────────────────────────────────────────────────────
+
+// 1. Login başlatır → Azure AD'ye yönlendirir
+app.get('/api/auth/saml/login', passport.authenticate('saml', { failureRedirect: '/', failureFlash: false }));
+
+// 2. Local dev callback
+app.post(
+  '/api/auth/saml/callback',
+  (req, res, next) => {
+    passport.authenticate('saml', { session: false }, (err, user) => {
+      if (err || !user) {
+        console.error('SAML Authentication error:', err);
+        return res.redirect(`${CLIENT_URL}/login?error=sso_failed`);
+      }
+      const token = generateJwt(user);
+      return res.redirect(`${CLIENT_URL}/login/success?token=${token}`);
+    })(req, res, next);
+  }
+);
+
+// 3. Production callback (kampüs proxy /spu prefix'ini siler, nginx /saml/ → /api/auth/saml/)
+app.post(
+  '/api/auth/saml/module.php/saml/sp/saml2-acs.php/default-sp',
+  (req, res, next) => {
+    passport.authenticate('saml', { session: false }, (err, user) => {
+      if (err || !user) {
+        console.error('SAML Authentication error:', err);
+        return res.redirect(`${CLIENT_URL}/login?error=sso_failed`);
+      }
+      const token = generateJwt(user);
+      return res.redirect(`${CLIENT_URL}/login/success?token=${token}`);
+    })(req, res, next);
+  }
+);
+// ──────────────────────────────────────────────────────────────────────────────
 
 app.use((req, res, next) => {
   const requestOrigin = req.headers.origin;

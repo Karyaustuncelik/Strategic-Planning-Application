@@ -124,6 +124,30 @@ export default function App() {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   }, [currentUser]);
 
+  // SSO callback: /login/success?token=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (!token) return;
+
+    try {
+      // JWT payload decode (verify sunucu tarafında yapılıyor, burada sadece parse)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const session: AuthSession = {
+        id: payload.email,
+        name: payload.name || payload.email,
+        role: (payload.role as AuthSession['role']) || 'Strategy Office',
+        loginMode: 'sso',
+      };
+      setCurrentUser(session);
+      // URL'den token parametresini temizle
+      window.history.replaceState({}, '', window.location.pathname.replace(/\/login\/success\/?$/, '/'));
+    } catch {
+      console.error('SSO token parse failed');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
