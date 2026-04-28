@@ -131,8 +131,14 @@ export default function App() {
     if (!token) return;
 
     try {
-      // JWT payload decode (verify sunucu tarafında yapılıyor, burada sadece parse)
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // JWT base64url → base64 dönüşümü (atob standart base64 bekler)
+      const payloadBase64Url = token.split('.')[1];
+      const payloadBase64 = payloadBase64Url
+        .replace(/-/g, '+')
+        .replace(/_/g, '/')
+        .padEnd(Math.ceil(payloadBase64Url.length / 4) * 4, '=');
+      const payload = JSON.parse(atob(payloadBase64));
+
       const session: AuthSession = {
         id: payload.email,
         name: payload.name || payload.email,
@@ -142,8 +148,8 @@ export default function App() {
       setCurrentUser(session);
       // URL'den token parametresini temizle
       window.history.replaceState({}, '', window.location.pathname.replace(/\/login\/success\/?$/, '/'));
-    } catch {
-      console.error('SSO token parse failed');
+    } catch (e) {
+      console.error('SSO token parse failed', e);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
