@@ -71,6 +71,8 @@ passport.use(
       cert: SSO_CERT,
       idpCert: SSO_CERT,
       validateInResponseTo: 'never',
+      wantAuthnResponseSigned: false,
+      wantAssertionsSigned: false,
     },
     (profile, done) => {
       const email =
