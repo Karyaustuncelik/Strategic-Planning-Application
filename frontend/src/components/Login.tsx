@@ -172,17 +172,19 @@ export function Login({ onLogin }: LoginProps) {
                 </button>
               </div>
 
-              {/* SSO Login */}
-              <div className="mt-6 border-t border-slate-100 pt-6">
-                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-                  {t('University Account')}
-                </p>
+              {/* University Account — SSO Kartı */}
+              <div className="mt-4">
                 <a
                   href="/api/auth/saml/login"
-                  className="flex w-full items-center justify-center gap-3 rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-md"
+                  className="block rounded-3xl border border-slate-200 bg-white p-5 text-left transition-all hover:border-blue-200 hover:bg-slate-50"
                 >
-                  <LogIn className="h-5 w-5" />
-                  {t('Sign in with Sabancı University SSO')}
+                  <LogIn className="h-8 w-8 text-blue-600" />
+                  <h2 className="mt-4 text-lg font-semibold text-slate-900">
+                    {t('University Account')}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t('Sign in with your Sabancı University Microsoft account.')}
+                  </p>
                 </a>
               </div>
             </div>
