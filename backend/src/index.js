@@ -1,5 +1,4 @@
 import express from 'express';
-import session from 'express-session';
 import passport from 'passport';
 import { Strategy as SamlStrategy } from '@node-saml/passport-saml';
 import jwt from 'jsonwebtoken';
@@ -101,15 +100,7 @@ function generateJwt(user) {
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
-app.use(
-  session({
-    secret: JWT_SECRET,
-    resave: false,
-    saveUninitialized: false,
-  })
-);
 app.use(passport.initialize());
-app.use(passport.session());
 
 // ─── SAML Routes ──────────────────────────────────────────────────────────────
 
