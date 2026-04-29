@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   Calendar,
@@ -38,14 +38,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from './components/ui/sheet';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './components/ui/dropdown-menu';
 import { HierarchyNavigationFilter, AuthSession } from './types';
 import { useI18n } from './i18n';
 import {
@@ -80,34 +72,47 @@ function getInitials(name: string) {
 }
 
 function UserBadge({ name, onLogout, t }: { name: string; onLogout: () => void; t: (k: string) => string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex h-10 items-center gap-2.5 rounded-xl border border-[#d7e3f2] bg-white px-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50 outline-none"
-        >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
-            {getInitials(name)}
-          </span>
-          <span className="hidden sm:inline max-w-[160px] truncate">{name}</span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel className="font-normal">
-          <p className="text-xs text-muted-foreground">{t('Signed in as')}</p>
-          <p className="truncate text-sm font-semibold text-[#15345c]">{name}</p>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={onLogout}
-          className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-600"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          {t('Logout')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="inline-flex h-10 items-center gap-2.5 rounded-xl border border-[#d7e3f2] bg-white px-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
+          {getInitials(name)}
+        </span>
+        <span className="hidden sm:inline max-w-[160px] truncate">{name}</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-52 rounded-xl border border-[#d7e3f2] bg-white py-2 shadow-xl z-50">
+          <div className="px-4 py-2 border-b border-[#d7e3f2] mb-1">
+            <p className="text-xs text-slate-500">{t('Signed in as')}</p>
+            <p className="text-sm font-semibold text-[#15345c] truncate">{name}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onLogout(); }}
+            className="inline-flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            {t('Logout')}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -360,20 +365,7 @@ export default function App() {
             : 'flex w-72 flex-col border-r border-[#d7e3f2] bg-[#f7fafd]'
         }
       >
-        {/* Sidebar header - main content top bar ile hizalı */}
-        <div className="flex h-[72px] items-center border-b border-[#d7e3f2] bg-white px-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15345c]">
-              <BarChart3 className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#15345c]">SPU</p>
-              <p className="text-[11px] text-slate-500 leading-tight">Strategic Planning</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-1 flex-col px-4 py-5 overflow-y-auto">
+        <div className="flex h-full flex-col px-4 py-5">
           <div className="flex-1">
             {renderNavigation()}
           </div>
@@ -392,56 +384,101 @@ export default function App() {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        {/* Top header — sidebar h-[72px] header ile piksel hizalı */}
-        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-[#d7e3f2] bg-white px-4 sm:px-6 lg:px-8">
-          {isCompactLayout && (
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white text-[#15345c] transition-colors hover:bg-blue-50">
-                  <Menu className="h-4 w-4" />
-                </button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[88vw] max-w-sm border-r border-[#d7e3f2] bg-[#f7fafd] p-0">
-                <SheetHeader className="border-b border-[#d7e3f2] bg-white">
-                  <SheetTitle>{t('Navigation')}</SheetTitle>
-                  <SheetDescription>
-                    {isViewer ? t('Only your personal work areas are visible.') : t('Admin pages and planning tools are available here.')}
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="flex h-full flex-col p-4">
-                  <div className="flex-1">{renderNavigation(true)}</div>
-                  <button type="button" onClick={handleLogout} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50">
-                    <LogOut className="h-4 w-4" />{t('Logout')}
-                  </button>
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" onClick={toggleLanguage} data-i18n-skip="true" className="inline-flex h-10 min-w-11 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white px-3 text-xs font-semibold tracking-wide text-[#15345c] transition-colors hover:bg-blue-50">
-              {language === 'tr' ? 'EN' : 'TR'}
-            </button>
-            <div className="min-w-[170px]">
-              <Select value={selectedAcademicYearRange} onValueChange={setSelectedAcademicYearRange}>
-                <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none">
-                  <SelectValue placeholder={t('Academic Year')} />
-                </SelectTrigger>
-                <SelectContent className="border-[#d7e3f2] bg-white shadow-[0_20px_40px_-24px_rgba(0,39,118,0.35)]">
-                  {academicYearOptions.map((year) => (
-                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {isReadOnly && (
-              <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-medium text-amber-700">{t('View Only')}</span>
-            )}
-            <UserBadge name={currentUser.name} onLogout={handleLogout} t={t} />
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <section className="mx-auto min-w-0 max-w-7xl">
+            <div
+              className={`mb-6 flex flex-wrap items-center gap-3 ${
+                isCompactLayout ? 'justify-between' : 'justify-end'
+              }`}
+            >
+              {isCompactLayout && (
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white text-[#15345c] transition-colors hover:bg-blue-50"
+                    >
+                      <Menu className="h-4 w-4" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[88vw] max-w-sm border-r border-[#d7e3f2] bg-[#f7fafd] p-0">
+                    <SheetHeader className="border-b border-[#d7e3f2] bg-white">
+                      <SheetTitle>{t('Navigation')}</SheetTitle>
+                      <SheetDescription>
+                        {isViewer
+                          ? t('Only your personal work areas are visible.')
+                          : t('Admin pages and planning tools are available here.')}
+                      </SheetDescription>
+                    </SheetHeader>
+                    <div className="flex h-full flex-col p-4">
+                      <div className="flex-1">{renderNavigation(true)}</div>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {t('Logout')}
+                      </button>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              )}
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                data-i18n-skip="true"
+                aria-label={
+                  language === 'tr'
+                    ? t('Switch language to English')
+                    : t('Switch language to Turkish')
+                }
+                className="inline-flex h-10 min-w-11 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white px-3 text-xs font-semibold tracking-wide text-[#15345c] transition-colors hover:bg-blue-50"
+              >
+                {language === 'tr' ? 'EN' : 'TR'}
+              </button>
+
+              <div className="min-w-[170px]">
+                <Select
+                  value={selectedAcademicYearRange}
+                  onValueChange={setSelectedAcademicYearRange}
+                >
+                  <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none">
+                    <SelectValue placeholder={t('Academic Year')} />
+                  </SelectTrigger>
+                  <SelectContent className="border-[#d7e3f2] bg-white shadow-[0_20px_40px_-24px_rgba(0,39,118,0.35)]">
+                    {academicYearOptions.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isReadOnly && (
+                <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-medium text-amber-700">
+                  {t('View Only')}
+                </span>
+              )}
+
+              {isCompactLayout && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d7e3f2] px-4 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {t('Logout')}
+                </button>
+              )}
+
+              {/* User badge */}
+              <UserBadge name={currentUser.name} onLogout={handleLogout} t={t} />
+              </div>
+            </div>
 
             {currentView === 'dashboard' && (
               <Dashboard
