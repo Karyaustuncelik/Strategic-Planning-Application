@@ -54,15 +54,16 @@ const allowedOrigins = String(process.env.CORS_ORIGIN || '*')
   .filter(Boolean);
 
 // ─── SAML Strategy ────────────────────────────────────────────────────────────
-const SSO_CERT = process.env.SSO_CERT;
+const SSO_CERT = process.env.SSO_CERT || '';
 if (!SSO_CERT) {
   console.warn('⚠️  SSO_CERT is not set — SAML authentication will not work.');
 }
 
-// node-saml PEM formatı bekler
-const IDP_CERT_PEM = SSO_CERT
-  ? `-----BEGIN CERTIFICATE-----\n${SSO_CERT}\n-----END CERTIFICATE-----`
-  : '';
+// PEM header/footer ve whitespace varsa temizle — node-saml bare base64 bekliyor
+const CERTIFICATE = SSO_CERT
+  .replace(/-----BEGIN CERTIFICATE-----/g, '')
+  .replace(/-----END CERTIFICATE-----/g, '')
+  .replace(/\s+/g, '');
 
 passport.use(
   new SamlStrategy(
@@ -73,8 +74,11 @@ passport.use(
       callbackUrl: process.env.NODE_ENV === 'production'
         ? 'https://student-projects.sabanciuniv.edu/spu/saml/module.php/saml/sp/saml2-acs.php/default-sp'
         : 'http://localhost:9001/api/auth/saml/callback',
-      cert: IDP_CERT_PEM,
-      idpCert: IDP_CERT_PEM,
+      // idpCert: Azure AD IdP'nin public sertifikası (bare base64, header'sız)
+      idpCert: CERTIFICATE,
+      // Azure AD assertion'ı imzalar ama tüm response'u imzalamayabilir
+      wantAuthnResponseSigned: false,
+      wantAssertionsSigned: true,
       validateInResponseTo: 'never',
     },
     (profile, done) => {
