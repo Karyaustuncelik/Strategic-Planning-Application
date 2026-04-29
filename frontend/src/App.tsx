@@ -392,101 +392,56 @@ export default function App() {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <section className="mx-auto min-w-0 max-w-7xl">
-            <div
-              className={`mb-6 flex flex-wrap items-center gap-3 ${
-                isCompactLayout ? 'justify-between' : 'justify-end'
-              }`}
-            >
-              {isCompactLayout && (
-                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                  <SheetTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white text-[#15345c] transition-colors hover:bg-blue-50"
-                    >
-                      <Menu className="h-4 w-4" />
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-[88vw] max-w-sm border-r border-[#d7e3f2] bg-[#f7fafd] p-0">
-                    <SheetHeader className="border-b border-[#d7e3f2] bg-white">
-                      <SheetTitle>{t('Navigation')}</SheetTitle>
-                      <SheetDescription>
-                        {isViewer
-                          ? t('Only your personal work areas are visible.')
-                          : t('Admin pages and planning tools are available here.')}
-                      </SheetDescription>
-                    </SheetHeader>
-                    <div className="flex h-full flex-col p-4">
-                      <div className="flex-1">{renderNavigation(true)}</div>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        {t('Logout')}
-                      </button>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              )}
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                data-i18n-skip="true"
-                aria-label={
-                  language === 'tr'
-                    ? t('Switch language to English')
-                    : t('Switch language to Turkish')
-                }
-                className="inline-flex h-10 min-w-11 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white px-3 text-xs font-semibold tracking-wide text-[#15345c] transition-colors hover:bg-blue-50"
-              >
-                {language === 'tr' ? 'EN' : 'TR'}
-              </button>
-
-              <div className="min-w-[170px]">
-                <Select
-                  value={selectedAcademicYearRange}
-                  onValueChange={setSelectedAcademicYearRange}
-                >
-                  <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none">
-                    <SelectValue placeholder={t('Academic Year')} />
-                  </SelectTrigger>
-                  <SelectContent className="border-[#d7e3f2] bg-white shadow-[0_20px_40px_-24px_rgba(0,39,118,0.35)]">
-                    {academicYearOptions.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {isReadOnly && (
-                <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-medium text-amber-700">
-                  {t('View Only')}
-                </span>
-              )}
-
-              {isCompactLayout && (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#d7e3f2] px-4 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {t('Logout')}
+        {/* Top header — sidebar h-[72px] header ile piksel hizalı */}
+        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-[#d7e3f2] bg-white px-4 sm:px-6 lg:px-8">
+          {isCompactLayout && (
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white text-[#15345c] transition-colors hover:bg-blue-50">
+                  <Menu className="h-4 w-4" />
                 </button>
-              )}
-
-              {/* User badge */}
-              <UserBadge name={currentUser.name} onLogout={handleLogout} t={t} />
-              </div>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[88vw] max-w-sm border-r border-[#d7e3f2] bg-[#f7fafd] p-0">
+                <SheetHeader className="border-b border-[#d7e3f2] bg-white">
+                  <SheetTitle>{t('Navigation')}</SheetTitle>
+                  <SheetDescription>
+                    {isViewer ? t('Only your personal work areas are visible.') : t('Admin pages and planning tools are available here.')}
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="flex h-full flex-col p-4">
+                  <div className="flex-1">{renderNavigation(true)}</div>
+                  <button type="button" onClick={handleLogout} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50">
+                    <LogOut className="h-4 w-4" />{t('Logout')}
+                  </button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={toggleLanguage} data-i18n-skip="true" className="inline-flex h-10 min-w-11 items-center justify-center rounded-xl border border-[#d7e3f2] bg-white px-3 text-xs font-semibold tracking-wide text-[#15345c] transition-colors hover:bg-blue-50">
+              {language === 'tr' ? 'EN' : 'TR'}
+            </button>
+            <div className="min-w-[170px]">
+              <Select value={selectedAcademicYearRange} onValueChange={setSelectedAcademicYearRange}>
+                <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none">
+                  <SelectValue placeholder={t('Academic Year')} />
+                </SelectTrigger>
+                <SelectContent className="border-[#d7e3f2] bg-white shadow-[0_20px_40px_-24px_rgba(0,39,118,0.35)]">
+                  {academicYearOptions.map((year) => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            {isReadOnly && (
+              <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-medium text-amber-700">{t('View Only')}</span>
+            )}
+            <UserBadge name={currentUser.name} onLogout={handleLogout} t={t} />
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+          <section className="mx-auto min-w-0 max-w-7xl">
 
             {currentView === 'dashboard' && (
               <Dashboard
