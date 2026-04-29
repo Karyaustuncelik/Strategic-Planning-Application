@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   Calendar,
@@ -38,6 +38,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from './components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu';
 import { HierarchyNavigationFilter, AuthSession } from './types';
 import { useI18n } from './i18n';
 import {
@@ -72,47 +80,34 @@ function getInitials(name: string) {
 }
 
 function UserBadge({ name, onLogout, t }: { name: string; onLogout: () => void; t: (k: string) => string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="inline-flex h-10 items-center gap-2.5 rounded-xl border border-[#d7e3f2] bg-white px-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
-      >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
-          {getInitials(name)}
-        </span>
-        <span className="hidden sm:inline max-w-[160px] truncate">{name}</span>
-      </button>
-
-      {open && (
-        <div className="absolute right-0 mt-2 w-52 rounded-xl border border-[#d7e3f2] bg-white py-2 shadow-xl z-50">
-          <div className="px-4 py-2 border-b border-[#d7e3f2] mb-1">
-            <p className="text-xs text-slate-500">{t('Signed in as')}</p>
-            <p className="text-sm font-semibold text-[#15345c] truncate">{name}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { setOpen(false); onLogout(); }}
-            className="inline-flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            {t('Logout')}
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-10 items-center gap-2.5 rounded-xl border border-[#d7e3f2] bg-white px-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50 outline-none"
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
+            {getInitials(name)}
+          </span>
+          <span className="hidden sm:inline max-w-[160px] truncate">{name}</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel className="font-normal">
+          <p className="text-xs text-muted-foreground">{t('Signed in as')}</p>
+          <p className="truncate text-sm font-semibold text-[#15345c]">{name}</p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={onLogout}
+          className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-600"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          {t('Logout')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -365,7 +360,20 @@ export default function App() {
             : 'flex w-72 flex-col border-r border-[#d7e3f2] bg-[#f7fafd]'
         }
       >
-        <div className="flex h-full flex-col px-4 py-5">
+        {/* Sidebar header - main content top bar ile hizalı */}
+        <div className="flex h-[72px] items-center border-b border-[#d7e3f2] bg-white px-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15345c]">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#15345c]">SPU</p>
+              <p className="text-[11px] text-slate-500 leading-tight">Strategic Planning</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col px-4 py-5 overflow-y-auto">
           <div className="flex-1">
             {renderNavigation()}
           </div>
