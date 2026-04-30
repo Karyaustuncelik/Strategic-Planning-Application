@@ -67,6 +67,7 @@ interface GoalDraft {
 }
 
 interface KpiDraft {
+  subgoalName: string;
   goalId: string;
   name: string;
   description: string;
@@ -645,6 +646,7 @@ export function HierarchyView({
     const yearDates = getAcademicYearDateRange(selectedAcademicYearStart);
     setKpiDraft({
       goalId: subGoal.id,
+      subgoalName: subGoal.title,
       name: '',
       description: '',
       targetValue: 0,
@@ -661,6 +663,7 @@ export function HierarchyView({
     const yearDates = getAcademicYearDateRange(selectedAcademicYearStart);
     setActionDraft({
       goalId: subGoal.id,
+      subgoalName: subGoal.title,
       title: '',
       description: '',
       deadline: formatDateString(yearDates.endDate),
@@ -1398,7 +1401,7 @@ export function HierarchyView({
         <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3>Add KPI</h3>
+              <h3>Add KPI to {kpiDraft.subgoalName}</h3>
               <button onClick={() => setKpiDraft(null)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
