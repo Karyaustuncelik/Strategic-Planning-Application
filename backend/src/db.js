@@ -1329,9 +1329,12 @@ export async function copyAcademicYearGoals(payload) {
         `INSERT INTO kpis (
           id, goal_id, name, description, target_value, current_value, unit,
           academic_year_start, responsible_unit, deadline, status, updated_at,
-          updated_by, assigned_to
+          updated_by, assigned_to, lineage_key, result_type, result_value,
+          result_updated_at, result_updated_by, projection_values,
+          projection_updated_at, projection_updated_by
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+          $16, $17, $18, $19, $20::jsonb, $21, $22
         ) RETURNING *`,
         [
           nextKpiId,
@@ -1347,6 +1350,14 @@ export async function copyAcademicYearGoals(payload) {
           'Not Started',
           copiedAt,
           requestedBy,
+          null,
+          sourceRow.lineage_key ?? sourceRow.id,
+          null,
+          null,
+          null,
+          null,
+          JSON.stringify([]),
+          null,
           null,
         ]
       );

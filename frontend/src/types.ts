@@ -52,6 +52,12 @@ export type ActionStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Blocke
 export type Priority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type MilestoneStatus = 'Not Started' | 'In Progress' | 'Completed' | 'Overdue';
 export type LinkedEntityType = 'Goal' | 'SubGoal';
+export type KpiResultType =
+  | 'number'
+  | 'percentage'
+  | 'currency'
+  | 'text'
+  | 'boolean';
 
 export interface Goal {
   id: string;
@@ -87,6 +93,14 @@ export interface KPI {
   updatedAt: string;
   updatedBy: string;
   assignedTo?: string;
+  lineageKey?: string;
+  resultType?: KpiResultType;
+  resultValue?: string;
+  resultUpdatedAt?: string;
+  resultUpdatedBy?: string;
+  projectionValues?: string[];
+  projectionUpdatedAt?: string;
+  projectionUpdatedBy?: string;
 }
 
 export interface ActionPlan {

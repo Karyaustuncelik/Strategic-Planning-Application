@@ -636,6 +636,14 @@ function rowToKpi(row) {
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
     assignedTo: row.assigned_to ?? undefined,
+    lineageKey: row.lineage_key ?? undefined,
+    resultType: row.result_type ?? undefined,
+    resultValue: row.result_value ?? undefined,
+    resultUpdatedAt: row.result_updated_at ?? undefined,
+    resultUpdatedBy: row.result_updated_by ?? undefined,
+    projectionValues: Array.isArray(row.projection_values) ? row.projection_values : [],
+    projectionUpdatedAt: row.projection_updated_at ?? undefined,
+    projectionUpdatedBy: row.projection_updated_by ?? undefined,
   };
 }
 
@@ -756,6 +764,28 @@ function validateKpiPayload(payload) {
       payload.assignedTo == null || payload.assigned_to == null
         ? String(payload.assignedTo ?? payload.assigned_to ?? '').trim() || null
         : String(payload.assignedTo ?? payload.assigned_to).trim() || null,
+    lineageKey:
+      payload.lineageKey != null
+        ? String(payload.lineageKey).trim() || null
+        : payload.lineage_key != null
+          ? String(payload.lineage_key).trim() || null
+          : undefined,
+    resultType: payload.resultType ?? payload.result_type ?? null,
+    resultValue:
+      payload.resultValue != null
+        ? String(payload.resultValue)
+        : payload.result_value != null
+          ? String(payload.result_value)
+          : null,
+    resultUpdatedAt: payload.resultUpdatedAt ?? payload.result_updated_at ?? null,
+    resultUpdatedBy: payload.resultUpdatedBy ?? payload.result_updated_by ?? null,
+    projectionValues: Array.isArray(payload.projectionValues)
+      ? payload.projectionValues
+      : Array.isArray(payload.projection_values)
+        ? payload.projection_values
+        : [],
+    projectionUpdatedAt: payload.projectionUpdatedAt ?? payload.projection_updated_at ?? null,
+    projectionUpdatedBy: payload.projectionUpdatedBy ?? payload.projection_updated_by ?? null,
   };
 
   if (!kpi.goalId) throw createHttpError(400, 'goalId is required');
@@ -1129,7 +1159,15 @@ export async function updateKPI(id, payload) {
             status = $11,
             updated_at = $12,
             updated_by = $13,
-            assigned_to = $14
+            assigned_to = $14,
+            lineage_key = $15,
+            result_type = $16,
+            result_value = $17,
+            result_updated_at = $18,
+            result_updated_by = $19,
+            projection_values = $20,
+            projection_updated_at = $21,
+            projection_updated_by = $22
       WHERE id = $1
       RETURNING *`,
       [
@@ -1147,6 +1185,14 @@ export async function updateKPI(id, payload) {
         merged.updatedAt,
         merged.updatedBy,
         merged.assignedTo,
+        merged.lineageKey ?? null,
+        merged.resultType ?? null,
+        merged.resultValue ?? null,
+        merged.resultUpdatedAt ?? null,
+        merged.resultUpdatedBy ?? null,
+        JSON.stringify(merged.projectionValues ?? []),
+        merged.projectionUpdatedAt ?? null,
+        merged.projectionUpdatedBy ?? null,
       ]
     );
 
