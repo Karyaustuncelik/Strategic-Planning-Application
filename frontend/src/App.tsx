@@ -11,6 +11,7 @@ import {
   Menu,
   Settings2,
   Target,
+  TrendingUp,
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { HierarchyView } from './components/HierarchyView';
@@ -22,6 +23,7 @@ import { MyAssignedGoals } from './components/MyAssignedGoals';
 import { MilestoneManagement } from './components/MilestoneManagement';
 import { AcademicCalendarEditor } from './components/AcademicCalendarEditor';
 import { UnassignedGoalsView } from './components/UnassignedGoalsView';
+import { KpiProjectionComparisonView } from './components/KpiProjectionComparisonView';
 import { Login } from './components/Login';
 import {
   Select,
@@ -56,6 +58,7 @@ type AppView =
   | 'timeline'
   | 'myGoals'
   | 'milestones'
+  | 'projections'
   | 'unassignedGoals'
   | 'calendarSettings';
 
@@ -248,6 +251,7 @@ export default function App() {
       { id: 'assignments', label: t('Assignments'), icon: ListChecks },
       { id: 'milestones', label: t('Milestones'), icon: Flag },
       { id: 'analytics', label: t('Analytics'), icon: BarChart3 },
+      { id: 'projections', label: t('Projections'), icon: TrendingUp },
       { id: 'timeline', label: t('Timeline'), icon: Calendar },
       { id: 'calendarSettings', label: t('Academic Calendar'), icon: Settings2 },
     ];
@@ -565,6 +569,15 @@ export default function App() {
                 userUnit={currentUser.unit}
                 selectedAcademicYearStart={selectedAcademicYearStart}
                 onViewDetail={handleViewGoalDetail}
+              />
+            )}
+
+            {currentView === 'projections' && !isViewer && (
+              <KpiProjectionComparisonView
+                userRole={currentUser.role}
+                userName={currentUser.name}
+                userUnit={currentUser.unit}
+                selectedAcademicYearStart={selectedAcademicYearStart}
               />
             )}
 

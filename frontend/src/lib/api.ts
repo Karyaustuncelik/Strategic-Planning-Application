@@ -6,6 +6,7 @@ import type {
   Goal,
   GoalTreeAssignmentResult,
   KPI,
+  KpiResultType,
   LoginPayload,
   Milestone,
   UnitOwner,
@@ -135,8 +136,27 @@ export type UpdateKpiPayload = Partial<
     | 'status'
     | 'updatedBy'
     | 'assignedTo'
+    | 'lineageKey'
+    | 'resultType'
+    | 'resultValue'
+    | 'resultUpdatedAt'
+    | 'resultUpdatedBy'
+    | 'projectionValues'
+    | 'projectionUpdatedAt'
+    | 'projectionUpdatedBy'
   >
 >;
+
+export type UpdateKpiResultPayload = {
+  resultType: KpiResultType;
+  resultValue: string;
+  updatedBy: string;
+};
+
+export type UpdateKpiProjectionPayload = {
+  projectionValues: string[];
+  updatedBy: string;
+};
 
 export type CreateActionPlanPayload = Pick<
   ActionPlan,
@@ -390,6 +410,35 @@ export function updateKPI(kpiId: string, payload: UpdateKpiPayload) {
   return apiRequest<KPI>(`${API_PREFIX}/kpis/${kpiId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateKpiResult(kpiId: string, payload: UpdateKpiResultPayload) {
+  const shouldSyncCurrentValue =
+    payload.resultType === 'number' ||
+    payload.resultType === 'percentage' ||
+    payload.resultType === 'currency';
+  const numericResult = Number(payload.resultValue);
+
+  return updateKPI(kpiId, {
+    resultType: payload.resultType,
+    resultValue: payload.resultValue,
+    resultUpdatedAt: new Date().toISOString(),
+    resultUpdatedBy: payload.updatedBy,
+    currentValue:
+      shouldSyncCurrentValue && Number.isFinite(numericResult)
+        ? numericResult
+        : undefined,
+    updatedBy: payload.updatedBy,
+  });
+}
+
+export function updateKpiProjections(kpiId: string, payload: UpdateKpiProjectionPayload) {
+  return updateKPI(kpiId, {
+    projectionValues: payload.projectionValues,
+    projectionUpdatedAt: new Date().toISOString(),
+    projectionUpdatedBy: payload.updatedBy,
+    updatedBy: payload.updatedBy,
   });
 }
 

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActionPlan, Goal, KPI, UserRole } from '../types';
+import { ActionPlan, Goal, KPI, KpiResultType, UserRole } from '../types';
 import {
   ArrowLeft,
+  BarChart2,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Edit2,
   Target,
   TrendingUp,
@@ -17,6 +21,8 @@ import {
   fetchGoals,
   fetchKPIs,
   updateGoal,
+  updateKpiResult,
+  updateKpiProjections,
 } from '../lib/api';
 import { useI18n } from '../i18n';
 import { isAdminRole } from '../lib/access';
@@ -50,6 +56,15 @@ export function GoalDetail({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const locale = language === 'tr' ? 'tr-TR' : 'en-US';
+
+  // Result / Projection inline form state
+  const [activeResultKpiId, setActiveResultKpiId] = useState<string | null>(null);
+  const [activeProjectionKpiId, setActiveProjectionKpiId] = useState<string | null>(null);
+  const [resultFormType, setResultFormType] = useState<KpiResultType>('number');
+  const [resultFormValue, setResultFormValue] = useState('');
+  const [projectionFormValues, setProjectionFormValues] = useState<string[]>(Array(6).fill(''));
+  const [kpiFormSaving, setKpiFormSaving] = useState(false);
+  const [kpiFormError, setKpiFormError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -211,6 +226,64 @@ export function GoalDetail({
       ...editableGoal,
       [field]: value,
     });
+  };
+
+  const openResultForm = (kpi: KPI) => {
+    setActiveProjectionKpiId(null);
+    setKpiFormError(null);
+    setResultFormType((kpi.resultType as KpiResultType) ?? 'number');
+    setResultFormValue(kpi.resultValue ?? '');
+    setActiveResultKpiId(activeResultKpiId === kpi.id ? null : kpi.id);
+  };
+
+  const openProjectionForm = (kpi: KPI) => {
+    setActiveResultKpiId(null);
+    setKpiFormError(null);
+    const vals = Array(6).fill('');
+    (kpi.projectionValues ?? []).forEach((v, i) => { if (i < 6) vals[i] = v; });
+    setProjectionFormValues(vals);
+    setActiveProjectionKpiId(activeProjectionKpiId === kpi.id ? null : kpi.id);
+  };
+
+  const handleSaveResult = async (kpi: KPI) => {
+    if (!resultFormValue.trim()) {
+      setKpiFormError(t('Result value is required'));
+      return;
+    }
+    setKpiFormSaving(true);
+    setKpiFormError(null);
+    try {
+      const updatedBy = userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${kpi.responsibleUnit} Manager`;
+      const updated = await updateKpiResult(kpi.id, {
+        resultType: resultFormType,
+        resultValue: resultFormValue.trim(),
+        updatedBy,
+      });
+      setRelatedKPIs((prev) => prev.map((k) => k.id === updated.id ? updated : k));
+      setActiveResultKpiId(null);
+    } catch (err) {
+      setKpiFormError(err instanceof Error ? err.message : 'Failed to save result');
+    } finally {
+      setKpiFormSaving(false);
+    }
+  };
+
+  const handleSaveProjection = async (kpi: KPI) => {
+    setKpiFormSaving(true);
+    setKpiFormError(null);
+    try {
+      const updatedBy = userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${kpi.responsibleUnit} Manager`;
+      const updated = await updateKpiProjections(kpi.id, {
+        projectionValues: projectionFormValues,
+        updatedBy,
+      });
+      setRelatedKPIs((prev) => prev.map((k) => k.id === updated.id ? updated : k));
+      setActiveProjectionKpiId(null);
+    } catch (err) {
+      setKpiFormError(err instanceof Error ? err.message : 'Failed to save projection');
+    } finally {
+      setKpiFormSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -650,49 +723,231 @@ export function GoalDetail({
           {activeTab === 'kpis' && (
             <div className="space-y-4">
               {relatedKPIs.length > 0 ? (
-                relatedKPIs.map((kpi) => (
-                  <div
-                    key={kpi.id}
-                    className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                  >
-                    <h4 className="mb-2">{kpi.name}</h4>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {kpi.description}
-                    </p>
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>{t('Progress')}</span>
-                        <span>
-                          {kpi.currentValue} / {kpi.targetValue} {kpi.unit} (
-                          {kpi.targetValue > 0
-                            ? Math.round((kpi.currentValue / kpi.targetValue) * 100)
-                            : 0}
-                          %)
-                        </span>
+                relatedKPIs.map((kpi) => {
+                  const canEditKpi =
+                    !isReadOnly &&
+                    (userRole === 'Strategy Office' ||
+                      (userRole === 'Unit Manager' && kpi.responsibleUnit === userUnit));
+                  const isResultOpen = activeResultKpiId === kpi.id;
+                  const isProjectionOpen = activeProjectionKpiId === kpi.id;
+                  const yearStart = kpi.academicYearStart ?? goal?.academicYearStart ?? new Date().getFullYear();
+
+                  return (
+                    <div
+                      key={kpi.id}
+                      className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden"
+                    >
+                      <div className="p-4">
+                        <h4 className="mb-2">{kpi.name}</h4>
+                        <p className="text-sm text-gray-600 mb-3">{kpi.description}</p>
+                        <div className="mb-3">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>{t('Progress')}</span>
+                            <span>
+                              {kpi.currentValue} / {kpi.targetValue} {kpi.unit} (
+                              {kpi.targetValue > 0
+                                ? Math.round((kpi.currentValue / kpi.targetValue) * 100)
+                                : 0}
+                              %)
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(
+                                  kpi.targetValue > 0
+                                    ? (kpi.currentValue / kpi.targetValue) * 100
+                                    : 0,
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-sm text-gray-600 mb-3">
+                          <span>
+                            {t('Deadline')}:{' '}
+                            {new Date(kpi.deadline).toLocaleDateString(locale)}
+                          </span>
+                          <span>{t('Assigned To')}: {kpi.assignedTo}</span>
+                        </div>
+
+                        {/* Result & Projection summary badges */}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {kpi.resultValue && (
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                              <CheckCircle2 className="w-3 h-3" />
+                              {t('Result')}: {kpi.resultValue}
+                              {kpi.resultType === 'percentage' ? '%' : kpi.resultType === 'currency' ? ' ₺' : ''}
+                            </span>
+                          )}
+                          {kpi.projectionValues && kpi.projectionValues.some(Boolean) && (
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                              <BarChart2 className="w-3 h-3" />
+                              {t('Projection')}: {formatAcademicYearRange(yearStart)} → {formatAcademicYearRange(yearStart + 5)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        {canEditKpi && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openResultForm(kpi)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                                isResultOpen
+                                  ? 'bg-green-600 text-white border-green-600'
+                                  : 'bg-white text-green-700 border-green-300 hover:bg-green-50'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {t('Add Result')}
+                              {isResultOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
+                            <button
+                              onClick={() => openProjectionForm(kpi)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                                isProjectionOpen
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'
+                              }`}
+                            >
+                              <BarChart2 className="w-3.5 h-3.5" />
+                              {t('Add Projection')}
+                              {isProjectionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full"
-                          style={{
-                            width: `${Math.min(
-                              kpi.targetValue > 0
-                                ? (kpi.currentValue / kpi.targetValue) * 100
-                                : 0,
-                              100
-                            )}%`,
-                          }}
-                        />
-                      </div>
+
+                      {/* Inline Result Form */}
+                      {isResultOpen && (
+                        <div className="border-t border-gray-200 bg-green-50 p-4">
+                          <h5 className="text-sm font-semibold text-green-800 mb-3">{t('Enter Result')}</h5>
+                          {kpiFormError && activeResultKpiId === kpi.id && (
+                            <p className="text-xs text-red-600 mb-2">{kpiFormError}</p>
+                          )}
+                          <div className="flex flex-col gap-3">
+                            <div className="flex gap-3 flex-wrap">
+                              <div className="w-40">
+                                <label className="block text-xs text-gray-600 mb-1">{t('Result Type')}</label>
+                                <select
+                                  value={resultFormType}
+                                  onChange={(e) => setResultFormType(e.target.value as KpiResultType)}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                >
+                                  <option value="number">{t('Number')}</option>
+                                  <option value="percentage">{t('Percentage')}</option>
+                                  <option value="currency">{t('Currency')}</option>
+                                  <option value="text">{t('Text')}</option>
+                                  <option value="boolean">{t('Boolean')}</option>
+                                </select>
+                              </div>
+                              <div className="flex-1 min-w-[160px]">
+                                <label className="block text-xs text-gray-600 mb-1">{t('Result Value')}</label>
+                                {resultFormType === 'boolean' ? (
+                                  <select
+                                    value={resultFormValue}
+                                    onChange={(e) => setResultFormValue(e.target.value)}
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                  >
+                                    <option value="">{t('Select...')}</option>
+                                    <option value="true">{t('Yes / Achieved')}</option>
+                                    <option value="false">{t('No / Not Achieved')}</option>
+                                  </select>
+                                ) : resultFormType === 'text' ? (
+                                  <textarea
+                                    value={resultFormValue}
+                                    onChange={(e) => setResultFormValue(e.target.value)}
+                                    rows={2}
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-white resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    placeholder={t('Enter result description...')}
+                                  />
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={resultFormValue}
+                                    onChange={(e) => setResultFormValue(e.target.value)}
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    placeholder={resultFormType === 'percentage' ? '0-100' : resultFormType === 'currency' ? '0.00' : '0'}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => { setActiveResultKpiId(null); setKpiFormError(null); }}
+                                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                disabled={kpiFormSaving}
+                              >
+                                {t('Cancel')}
+                              </button>
+                              <button
+                                onClick={() => handleSaveResult(kpi)}
+                                disabled={kpiFormSaving}
+                                className="px-4 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
+                              >
+                                {kpiFormSaving ? t('Saving...') : t('Save Result')}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Inline Projection Form — 6 boxes side by side */}
+                      {isProjectionOpen && (
+                        <div className="border-t border-gray-200 bg-blue-50 p-4">
+                          <h5 className="text-sm font-semibold text-blue-800 mb-1">{t('Enter Projections')}</h5>
+                          <p className="text-xs text-blue-600 mb-3">{t('Enter projected values for current and upcoming 5 years.')}</p>
+                          {kpiFormError && activeProjectionKpiId === kpi.id && (
+                            <p className="text-xs text-red-600 mb-2">{kpiFormError}</p>
+                          )}
+                          <div className="overflow-x-auto pb-1">
+                            <div className="flex gap-2 min-w-max mb-3">
+                              {Array.from({ length: 6 }, (_, i) => (
+                                <div key={i} className="flex flex-col w-28">
+                                  <label className="block text-xs font-medium text-blue-700 mb-1 text-center whitespace-nowrap">
+                                    {i === 0
+                                      ? `${t('Current Year')} (${formatAcademicYearRange(yearStart)})`
+                                      : formatAcademicYearRange(yearStart + i)}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={projectionFormValues[i]}
+                                    onChange={(e) => {
+                                      const next = [...projectionFormValues];
+                                      next[i] = e.target.value;
+                                      setProjectionFormValues(next);
+                                    }}
+                                    className="w-full px-2 py-1.5 text-sm text-center border border-blue-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="—"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => { setActiveProjectionKpiId(null); setKpiFormError(null); }}
+                              className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              disabled={kpiFormSaving}
+                            >
+                              {t('Cancel')}
+                            </button>
+                            <button
+                              onClick={() => handleSaveProjection(kpi)}
+                              disabled={kpiFormSaving}
+                              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+                            >
+                              {kpiFormSaving ? t('Saving...') : t('Save Projections')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>
-                        {t('Deadline')}:{' '}
-                        {new Date(kpi.deadline).toLocaleDateString(locale)}
-                      </span>
-                      <span>{t('Assigned To')}: {kpi.assignedTo}</span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-gray-500 text-center py-8">
                   {t('No KPIs were found for this goal.')}

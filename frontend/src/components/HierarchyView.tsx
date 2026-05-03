@@ -6,6 +6,7 @@ import {
   GoalStatus,
   HierarchyNavigationFilter,
   KPI,
+  KpiResultType,
   Priority,
   UserRole,
 } from '../types';
@@ -22,6 +23,8 @@ import {
   ArrowUpDown,
   Plus,
   Trash2,
+  BarChart2,
+  TrendingUp,
 } from 'lucide-react';
 import {
   formatAcademicYearRange,
@@ -39,6 +42,8 @@ import {
   deleteGoal,
   deleteKPI,
   deleteActionPlan,
+  updateKpiProjections,
+  updateKpiResult,
 } from '../lib/api';
 
 interface HierarchyViewProps {
@@ -91,6 +96,22 @@ interface ActionDraft {
   assignedTo: string;
 }
 
+interface ResultDraft {
+  kpiId: string;
+  kpiName: string;
+  responsibleUnit: string;
+  resultType: KpiResultType;
+  resultValue: string;
+}
+
+interface ProjectionDraft {
+  kpiId: string;
+  kpiName: string;
+  responsibleUnit: string;
+  academicYearStart: number;
+  projectionValues: string[];
+}
+
 export function HierarchyView({
   userRole,
   userUnit,
@@ -125,7 +146,14 @@ export function HierarchyView({
   const [goalDraft, setGoalDraft] = useState<GoalDraft | null>(null);
   const [kpiDraft, setKpiDraft] = useState<KpiDraft | null>(null);
   const [actionDraft, setActionDraft] = useState<ActionDraft | null>(null);
+  const [resultDraft, setResultDraft] = useState<ResultDraft | null>(null);
+  const [projectionDraft, setProjectionDraft] = useState<ProjectionDraft | null>(
+    null
+  );
+
   const [unitOwnerMap, setUnitOwnerMap] = useState<Map<string, string>>(new Map());
+  const [isSavingResult, setIsSavingResult] = useState(false);
+  const [isSavingProjection, setIsSavingProjection] = useState(false);
 
   const units = [
     'Research Department',
@@ -489,6 +517,19 @@ export function HierarchyView({
     return goal?.academicYearStart;
   };
 
+  const getUpdaterName = (responsibleUnit: string) =>
+    userRole === 'Strategy Office'
+      ? 'Strategy Office Admin'
+      : `${responsibleUnit} Manager`;
+
+  const getProjectionLabels = (academicYearStart: number) =>
+    Array.from({ length: 6 }, (_, index) =>
+      formatAcademicYearRange(academicYearStart + index)
+    );
+
+  const getProjectionFillCount = (kpi: KPI) =>
+    (kpi.projectionValues ?? []).filter((value) => value.trim().length > 0).length;
+
   const handleCreateGoal = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!goalDraft) return;
@@ -674,6 +715,33 @@ export function HierarchyView({
     });
   };
 
+  const openResultDraft = (kpi: KPI) => {
+
+    setResultDraft({
+      kpiId: kpi.id,
+      kpiName: kpi.name,
+      responsibleUnit: kpi.responsibleUnit,
+      resultType: kpi.resultType ?? 'number',
+      resultValue:
+        kpi.resultValue ?? (kpi.currentValue > 0 ? String(kpi.currentValue) : ''),
+    });
+  };
+
+  const openProjectionDraft = (kpi: KPI) => {
+
+    const projectionValues = Array.from({ length: 6 }, (_, index) =>
+      kpi.projectionValues?.[index] ?? ''
+    );
+
+    setProjectionDraft({
+      kpiId: kpi.id,
+      kpiName: kpi.name,
+      responsibleUnit: kpi.responsibleUnit,
+      academicYearStart: kpi.academicYearStart,
+      projectionValues,
+    });
+  };
+
   const handleDeleteGoal = async (id: string, title: string) => {
     if (!window.confirm(`Are you sure you want to delete the goal: "${title}"? This will also delete all sub-goals, KPIs, and actions.`)) {
       return;
@@ -733,6 +801,53 @@ export function HierarchyView({
     }
   };
 
+  const handleSaveResult = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!resultDraft) return;
+
+    setIsSavingResult(true);
+    setGoalError(null);
+
+    try {
+      const updated = await updateKpiResult(resultDraft.kpiId, {
+        resultType: resultDraft.resultType,
+        resultValue: resultDraft.resultValue,
+        updatedBy: getUpdaterName(resultDraft.responsibleUnit),
+      });
+
+      setKpis((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setResultDraft(null);
+    } catch (err) {
+      setGoalError(err instanceof Error ? err.message : 'Failed to save KPI result');
+    } finally {
+      setIsSavingResult(false);
+    }
+  };
+
+  const handleSaveProjection = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!projectionDraft) return;
+
+    setIsSavingProjection(true);
+    setGoalError(null);
+
+    try {
+      const updated = await updateKpiProjections(projectionDraft.kpiId, {
+        projectionValues: projectionDraft.projectionValues,
+        updatedBy: getUpdaterName(projectionDraft.responsibleUnit),
+      });
+
+      setKpis((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setProjectionDraft(null);
+    } catch (err) {
+      setGoalError(
+        err instanceof Error ? err.message : 'Failed to save KPI projections'
+      );
+    } finally {
+      setIsSavingProjection(false);
+    }
+  };
+
   const renderKpiTable = (subGoal: Goal) => {
     const items = kpis.filter(
       (kpi) => kpi.goalId === subGoal.id && kpi.academicYearStart === selectedAcademicYearStart
@@ -751,13 +866,19 @@ export function HierarchyView({
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Status</th>
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Target</th>
                 <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Owner</th>
-                <th className="px-4 py-2 text-right text-xs text-gray-700 uppercase">Actions</th>
+                <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Result</th>
+                <th className="px-4 py-2 text-left text-xs text-gray-700 uppercase">Projection</th>
+                {!isReadOnly && (
+                  <th className="px-4 py-2 text-right text-xs text-gray-700 uppercase">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {items.map((kpi) => (
-                <tr key={kpi.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-sm text-gray-700">{kpi.name}</td>
+                <tr key={kpi.id} className="align-top hover:bg-gray-50">
+                  <td className="px-4 py-2 text-sm text-gray-700">
+                    <div className="font-medium">{kpi.name}</div>
+                  </td>
                   <td className="px-4 py-2 text-xs">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${getStatusColor(kpi.status)}`}>
                       {getStatusIcon(kpi.status)}
@@ -767,24 +888,70 @@ export function HierarchyView({
                   <td className="px-4 py-2 text-xs text-gray-600">
                     {kpi.currentValue}/{kpi.targetValue} {kpi.unit}
                   </td>
-                  <td className="px-4 py-2 text-xs text-gray-600">{kpi.assignedTo || 'Unassigned'}</td>
-                  <td className="px-4 py-2 text-right text-xs">
-                    {!isReadOnly && (
-                      <button
-                        onClick={() => handleDeleteKPI(kpi.id, kpi.name)}
-                        className="p-1 text-slate-400 hover:text-red-600 transition-colors"
-                        title="Delete KPI"
-                        disabled={isDeleting === kpi.id}
-                      >
-                        <Trash2 className={`h-4 w-4 ${isDeleting === kpi.id ? 'animate-pulse' : ''}`} />
-                      </button>
+                  <td className="px-4 py-2 text-xs text-gray-600">
+                    {kpi.assignedTo || 'Unassigned'}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-600">
+                    {kpi.resultValue ? (
+                      <div className="space-y-1">
+                        <div className="font-medium text-slate-700">{kpi.resultValue}</div>
+                        <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                          {kpi.resultType ?? 'number'}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">No result</span>
                     )}
                   </td>
+                  <td className="px-4 py-2 text-xs text-gray-600">
+                    {getProjectionFillCount(kpi) > 0 ? (
+                      <div className="space-y-1">
+                        <div className="font-medium text-slate-700">
+                          {getProjectionFillCount(kpi)}/6
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {kpi.projectionValues?.[0] || 'Current year empty'}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">No projection</span>
+                    )}
+                  </td>
+                  {!isReadOnly && (
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => openResultDraft(kpi)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                          title="Add Result"
+                        >
+                          <BarChart2 className="h-3 w-3" />
+                          Result
+                        </button>
+                        <button
+                          onClick={() => openProjectionDraft(kpi)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                          title="Add Projection"
+                        >
+                          <TrendingUp className="h-3 w-3" />
+                          Projection
+                        </button>
+                        <button
+                          onClick={() => handleDeleteKPI(kpi.id, kpi.name)}
+                          className="inline-flex items-center rounded-lg border border-transparent p-1.5 text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                          title="Delete KPI"
+                          disabled={isDeleting === kpi.id}
+                        >
+                          <Trash2 className={`h-3.5 w-3.5 ${isDeleting === kpi.id ? 'animate-pulse' : ''}`} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                  <td colSpan={!isReadOnly ? 7 : 6} className="px-4 py-6 text-center text-sm text-gray-500">
                     No KPIs yet. Use "Add KPI" to create one.
                   </td>
                 </tr>
@@ -1530,6 +1697,175 @@ export function HierarchyView({
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-blue-300"
                 >
                   {isCreatingKpi ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {resultDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 p-4">
+              <div>
+                <h3>Add Result</h3>
+                <p className="mt-1 text-sm text-slate-500">{resultDraft.kpiName}</p>
+              </div>
+              <button
+                onClick={() => setResultDraft(null)}
+                className="rounded-lg p-2 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveResult} className="space-y-4 p-4">
+              <div>
+                <label className="mb-2 block text-sm text-gray-700">Result Type</label>
+                <select
+                  value={resultDraft.resultType}
+                  onChange={(event) =>
+                    setResultDraft({
+                      ...resultDraft,
+                      resultType: event.target.value as KpiResultType,
+                      resultValue:
+                        event.target.value === 'boolean' &&
+                        !['Yes', 'No'].includes(resultDraft.resultValue)
+                          ? 'Yes'
+                          : resultDraft.resultValue,
+                    })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                >
+                  <option value="number">Number</option>
+                  <option value="percentage">Percentage</option>
+                  <option value="currency">Currency</option>
+                  <option value="text">Text</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-gray-700">Result Value</label>
+                {resultDraft.resultType === 'boolean' ? (
+                  <select
+                    value={resultDraft.resultValue || 'Yes'}
+                    onChange={(event) =>
+                      setResultDraft({
+                        ...resultDraft,
+                        resultValue: event.target.value,
+                      })
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                ) : (
+                  <input
+                    type={
+                      resultDraft.resultType === 'text' ? 'text' : 'number'
+                    }
+                    step="any"
+                    value={resultDraft.resultValue}
+                    onChange={(event) =>
+                      setResultDraft({
+                        ...resultDraft,
+                        resultValue: event.target.value,
+                      })
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                    placeholder="Enter the KPI result"
+                    required
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-200 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResultDraft(null)}
+                  className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingResult}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:bg-blue-300"
+                >
+                  {isSavingResult ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {projectionDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="w-full max-w-[1120px] rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 p-4">
+              <div>
+                <h3>Add Projection</h3>
+                <p className="mt-1 text-sm text-slate-500">{projectionDraft.kpiName}</p>
+              </div>
+              <button
+                onClick={() => setProjectionDraft(null)}
+                className="rounded-lg p-2 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveProjection} className="space-y-4 p-4">
+              <div className="overflow-x-auto pb-2">
+                <div className="flex min-w-max flex-nowrap gap-3">
+                  {getProjectionLabels(projectionDraft.academicYearStart).map(
+                    (label, index) => (
+                      <div
+                        key={label}
+                        className="w-40 shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {label}
+                        </label>
+                        <input
+                          type="text"
+                          value={projectionDraft.projectionValues[index] ?? ''}
+                          onChange={(event) =>
+                            setProjectionDraft((current) => {
+                              if (!current) return current;
+                              const nextValues = [...current.projectionValues];
+                              nextValues[index] = event.target.value;
+                              return {
+                                ...current,
+                                projectionValues: nextValues,
+                              };
+                            })
+                          }
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                          placeholder={index === 0 ? 'Current Year' : 'Projection'}
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-gray-200 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setProjectionDraft(null)}
+                  className="rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProjection}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:bg-blue-300"
+                >
+                  {isSavingProjection ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>
