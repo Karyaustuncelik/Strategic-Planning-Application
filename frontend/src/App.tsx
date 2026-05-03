@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   Calendar,
@@ -70,6 +70,56 @@ interface NavigationItem {
 
 const SESSION_STORAGE_KEY = 'spa-auth-session';
 
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function UserBadge({ name, onLogout, t }: { name: string; onLogout: () => void; t: (k: string) => string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="inline-flex h-10 items-center gap-2.5 rounded-xl border border-[#d7e3f2] bg-white px-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
+          {getInitials(name)}
+        </span>
+        <span className="hidden sm:inline max-w-[160px] truncate">{name}</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-52 rounded-xl border border-[#d7e3f2] bg-white py-2 shadow-xl z-50">
+          <div className="px-4 py-2 border-b border-[#d7e3f2] mb-1">
+            <p className="text-xs text-slate-500">{t('Signed in as')}</p>
+            <p className="text-sm font-semibold text-[#15345c] truncate">{name}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onLogout(); }}
+            className="inline-flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            {t('Logout')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function readStoredSession() {
   if (typeof window === 'undefined') return null;
 
@@ -126,6 +176,35 @@ export default function App() {
 
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   }, [currentUser]);
+
+  // SSO callback: backend cookie 'spu_sso_token' set eder, burası okur
+  useEffect(() => {
+    const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('spu_sso_token='));
+    if (!match) return;
+
+    const token = match.split('=').slice(1).join('=');
+    // Cookie'yi hemen sil
+    document.cookie = 'spu_sso_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+    try {
+      const payloadBase64Url = token.split('.')[1];
+      const payloadBase64 = payloadBase64Url
+        .replace(/-/g, '+')
+        .replace(/_/g, '/')
+        .padEnd(Math.ceil(payloadBase64Url.length / 4) * 4, '=');
+      const payload = JSON.parse(atob(payloadBase64));
+      const session: AuthSession = {
+        id: payload.email,
+        name: payload.name || payload.email,
+        role: (payload.role as AuthSession['role']) || 'Strategy Office',
+        loginMode: 'sso',
+      };
+      setCurrentUser(session);
+    } catch (e) {
+      console.error('SSO token parse failed', e);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -399,6 +478,9 @@ export default function App() {
                   {t('Logout')}
                 </button>
               )}
+
+              {/* User badge */}
+              <UserBadge name={currentUser.name} onLogout={handleLogout} t={t} />
               </div>
             </div>
 
