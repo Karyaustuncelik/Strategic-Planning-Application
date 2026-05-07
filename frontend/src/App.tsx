@@ -9,9 +9,11 @@ import {
   ListTree,
   LogOut,
   Menu,
+  ScrollText,
   Settings2,
   Target,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { HierarchyView } from './components/HierarchyView';
@@ -24,6 +26,10 @@ import { MilestoneManagement } from './components/MilestoneManagement';
 import { AcademicCalendarEditor } from './components/AcademicCalendarEditor';
 import { UnassignedGoalsView } from './components/UnassignedGoalsView';
 import { KpiProjectionComparisonView } from './components/KpiProjectionComparisonView';
+import { AdminAuditLogsView } from './components/AdminAuditLogsView';
+import { UserManagementView } from './components/UserManagementView';
+import { UnauthorizedView } from './components/UnauthorizedView';
+import { setAuthToken } from './lib/api';
 import { Login } from './components/Login';
 import {
   Select,
@@ -60,7 +66,9 @@ type AppView =
   | 'milestones'
   | 'projections'
   | 'unassignedGoals'
-  | 'calendarSettings';
+  | 'calendarSettings'
+  | 'auditLogs'
+  | 'userManagement';
 
 interface NavigationItem {
   id: Exclude<AppView, 'detail'>;
@@ -125,7 +133,14 @@ function readStoredSession() {
 
   try {
     const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    return rawSession ? (JSON.parse(rawSession) as AuthSession) : null;
+    if (!rawSession) return null;
+    const session = JSON.parse(rawSession) as AuthSession;
+    // Admin sessions without a token are from before RBAC was added — force re-login
+    if (session.role === 'Strategy Office' && !session.token) {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -153,6 +168,7 @@ export default function App() {
   ]);
   const [selectedAcademicYearRange, setSelectedAcademicYearRange] =
     useState<string>(currentYearRange);
+  const [showUnauthorized, setShowUnauthorized] = useState(false);
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
   const [previousView, setPreviousView] = useState<AppView>('dashboard');
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
@@ -177,13 +193,25 @@ export default function App() {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
   }, [currentUser]);
 
-  // SSO callback: backend cookie 'spu_sso_token' set eder, burası okur
+  // Sync auth token for protected API calls whenever session changes
   useEffect(() => {
+    setAuthToken(currentUser?.token ?? null);
+  }, [currentUser]);
+
+  // SSO callback: backend sets 'spu_sso_token' cookie, read it here
+  useEffect(() => {
+    // Check for unauthorized SSO rejection
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('sso_error') === 'unauthorized') {
+      setShowUnauthorized(true);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
     const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('spu_sso_token='));
     if (!match) return;
 
     const token = match.split('=').slice(1).join('=');
-    // Cookie'yi hemen sil
     document.cookie = 'spu_sso_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 
     try {
@@ -196,8 +224,9 @@ export default function App() {
       const session: AuthSession = {
         id: payload.email,
         name: payload.name || payload.email,
-        role: (payload.role as AuthSession['role']) || 'Strategy Office',
+        role: (payload.role as AuthSession['role']) || 'Viewer',
         loginMode: 'sso',
+        token,
       };
       setCurrentUser(session);
     } catch (e) {
@@ -254,6 +283,8 @@ export default function App() {
       { id: 'projections', label: t('Projections'), icon: TrendingUp },
       { id: 'timeline', label: t('Timeline'), icon: Calendar },
       { id: 'calendarSettings', label: t('Academic Calendar'), icon: Settings2 },
+      { id: 'auditLogs', label: t('Audit Log'), icon: ScrollText },
+      { id: 'userManagement', label: t('User Management'), icon: Users },
     ];
   }, [currentUser, t]);
 
@@ -353,6 +384,10 @@ export default function App() {
       </div>
     </div>
   );
+
+  if (showUnauthorized) {
+    return <UnauthorizedView onBack={() => setShowUnauthorized(false)} />;
+  }
 
   if (!currentUser) {
     return (
@@ -579,6 +614,18 @@ export default function App() {
                 userUnit={currentUser.unit}
                 selectedAcademicYearStart={selectedAcademicYearStart}
               />
+            )}
+
+            {currentView === 'auditLogs' && !isViewer && (
+              <AdminAuditLogsView
+                userRole={currentUser.role}
+                selectedAcademicYearStart={selectedAcademicYearStart}
+                academicYearOptions={academicYearOptions}
+              />
+            )}
+
+            {currentView === 'userManagement' && !isViewer && (
+              <UserManagementView currentUserRole={currentUser.role} />
             )}
 
             {currentView === 'calendarSettings' && !isViewer && (

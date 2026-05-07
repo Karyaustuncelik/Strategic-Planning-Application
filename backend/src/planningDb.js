@@ -11,11 +11,20 @@ const createKpisTableSql = `
     unit TEXT NOT NULL,
     academic_year_start INTEGER NOT NULL,
     responsible_unit TEXT NOT NULL,
-    deadline TEXT NOT NULL,
+    deadline TEXT,
     status TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     updated_by TEXT NOT NULL,
-    assigned_to TEXT
+    assigned_to TEXT,
+    lineage_key TEXT,
+    result_type TEXT,
+    result_value TEXT,
+    result_updated_at TEXT,
+    result_updated_by TEXT,
+    projection_values JSONB NOT NULL DEFAULT '[]'::jsonb,
+    projection_updated_at TEXT,
+    projection_updated_by TEXT,
+    submission_history JSONB NOT NULL DEFAULT '[]'::jsonb
   );
 `;
 
@@ -28,7 +37,7 @@ const createActionPlansTableSql = `
     description TEXT NOT NULL,
     responsible_unit TEXT NOT NULL,
     assigned_to TEXT NOT NULL,
-    deadline TEXT NOT NULL,
+    deadline TEXT,
     status TEXT NOT NULL,
     progress INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
@@ -36,8 +45,37 @@ const createActionPlansTableSql = `
     updated_by TEXT NOT NULL,
     notes TEXT NOT NULL DEFAULT '',
     priority TEXT NOT NULL,
-    academic_year_start INTEGER NOT NULL
+    academic_year_start INTEGER NOT NULL,
+    lineage_key TEXT,
+    result_type TEXT,
+    result_value TEXT,
+    result_updated_at TEXT,
+    result_updated_by TEXT,
+    projection_values JSONB NOT NULL DEFAULT '[]'::jsonb,
+    projection_updated_at TEXT,
+    projection_updated_by TEXT,
+    submission_history JSONB NOT NULL DEFAULT '[]'::jsonb
   );
+`;
+
+const createSubmissionLogsTableSql = `
+  CREATE TABLE IF NOT EXISTS submission_logs (
+    id TEXT PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    entity_title TEXT NOT NULL,
+    goal_id TEXT,
+    academic_year_start INTEGER,
+    result_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    projection_data JSONB NOT NULL DEFAULT '[]'::jsonb,
+    submitted_by TEXT,
+    extended_by TEXT NOT NULL,
+    cycle_deadline TEXT,
+    log_type TEXT NOT NULL DEFAULT 'result',
+    logged_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS submission_logs_entity_id_idx ON submission_logs (entity_id);
+  CREATE INDEX IF NOT EXISTS submission_logs_entity_type_idx ON submission_logs (entity_type);
 `;
 
 const createMilestonesTableSql = `
@@ -644,6 +682,7 @@ function rowToKpi(row) {
     projectionValues: Array.isArray(row.projection_values) ? row.projection_values : [],
     projectionUpdatedAt: row.projection_updated_at ?? undefined,
     projectionUpdatedBy: row.projection_updated_by ?? undefined,
+    submissionHistory: Array.isArray(row.submission_history) ? row.submission_history : [],
   };
 }
 
@@ -665,6 +704,15 @@ function rowToActionPlan(row) {
     notes: row.notes,
     priority: row.priority,
     academicYearStart: row.academic_year_start,
+    lineageKey: row.lineage_key ?? undefined,
+    resultType: row.result_type ?? undefined,
+    resultValue: row.result_value ?? undefined,
+    resultUpdatedAt: row.result_updated_at ?? undefined,
+    resultUpdatedBy: row.result_updated_by ?? undefined,
+    projectionValues: Array.isArray(row.projection_values) ? row.projection_values : [],
+    projectionUpdatedAt: row.projection_updated_at ?? undefined,
+    projectionUpdatedBy: row.projection_updated_by ?? undefined,
+    submissionHistory: Array.isArray(row.submission_history) ? row.submission_history : [],
   };
 }
 
@@ -786,6 +834,11 @@ function validateKpiPayload(payload) {
         : [],
     projectionUpdatedAt: payload.projectionUpdatedAt ?? payload.projection_updated_at ?? null,
     projectionUpdatedBy: payload.projectionUpdatedBy ?? payload.projection_updated_by ?? null,
+    submissionHistory: Array.isArray(payload.submissionHistory)
+      ? payload.submissionHistory
+      : Array.isArray(payload.submission_history)
+        ? payload.submission_history
+        : [],
   };
 
   if (!kpi.goalId) throw createHttpError(400, 'goalId is required');
@@ -794,7 +847,6 @@ function validateKpiPayload(payload) {
   if (kpi.targetValue == null) throw createHttpError(400, 'targetValue is required');
   if (kpi.currentValue == null) throw createHttpError(400, 'currentValue is required');
   if (!kpi.unit) throw createHttpError(400, 'unit is required');
-  if (!kpi.deadline) throw createHttpError(400, 'deadline is required');
   if (!kpi.updatedBy) throw createHttpError(400, 'updatedBy is required');
   if (kpi.targetValue < 0 || kpi.currentValue < 0) {
     throw createHttpError(400, 'KPI values must be 0 or greater');
@@ -832,6 +884,33 @@ function validateActionPlanPayload(payload) {
       payload.academicYearStart ?? payload.academic_year_start,
       'academicYearStart'
     ),
+    lineageKey:
+      payload.lineageKey != null
+        ? String(payload.lineageKey).trim() || null
+        : payload.lineage_key != null
+          ? String(payload.lineage_key).trim() || null
+          : undefined,
+    resultType: payload.resultType ?? payload.result_type ?? null,
+    resultValue:
+      payload.resultValue != null
+        ? String(payload.resultValue)
+        : payload.result_value != null
+          ? String(payload.result_value)
+          : null,
+    resultUpdatedAt: payload.resultUpdatedAt ?? payload.result_updated_at ?? null,
+    resultUpdatedBy: payload.resultUpdatedBy ?? payload.result_updated_by ?? null,
+    projectionValues: Array.isArray(payload.projectionValues)
+      ? payload.projectionValues
+      : Array.isArray(payload.projection_values)
+        ? payload.projection_values
+        : [],
+    projectionUpdatedAt: payload.projectionUpdatedAt ?? payload.projection_updated_at ?? null,
+    projectionUpdatedBy: payload.projectionUpdatedBy ?? payload.projection_updated_by ?? null,
+    submissionHistory: Array.isArray(payload.submissionHistory)
+      ? payload.submissionHistory
+      : Array.isArray(payload.submission_history)
+        ? payload.submission_history
+        : [],
   };
 
   if (!actionPlan.goalId) throw createHttpError(400, 'goalId is required');
@@ -840,7 +919,6 @@ function validateActionPlanPayload(payload) {
     throw createHttpError(400, 'description is required');
   }
   if (!actionPlan.assignedTo) throw createHttpError(400, 'assignedTo is required');
-  if (!actionPlan.deadline) throw createHttpError(400, 'deadline is required');
   if (!actionPlan.updatedBy) throw createHttpError(400, 'updatedBy is required');
   if (!validActionStatuses.has(actionPlan.status)) {
     throw createHttpError(400, 'status is invalid');
@@ -941,9 +1019,44 @@ function validateEvidencePayload(payload) {
 export async function initPlanningDb() {
   if (!pool) return;
 
+  await pool.query(createSubmissionLogsTableSql);
   await pool.query(createKpisTableSql);
   await pool.query(createActionPlansTableSql);
   await pool.query(createMilestonesTableSql);
+
+  // Migrate existing kpis table to add result/projection columns if missing
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS lineage_key TEXT`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_type TEXT`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_value TEXT`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_updated_at TEXT`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_updated_by TEXT`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS projection_values JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS projection_updated_at TEXT`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS projection_updated_by TEXT`);
+
+  // Migrate existing action_plans table to add result/projection columns if missing
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS lineage_key TEXT`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS result_type TEXT`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS result_value TEXT`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS result_updated_at TEXT`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS result_updated_by TEXT`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS projection_values JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS projection_updated_at TEXT`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS projection_updated_by TEXT`);
+  await pool.query(`ALTER TABLE action_plans ALTER COLUMN deadline DROP NOT NULL`);
+  await pool.query(`ALTER TABLE kpis ADD COLUMN IF NOT EXISTS submission_history JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE kpis ALTER COLUMN deadline DROP NOT NULL`);
+  await pool.query(`ALTER TABLE action_plans ADD COLUMN IF NOT EXISTS submission_history JSONB NOT NULL DEFAULT '[]'::jsonb`);
+
+  // Add log_type column for separating result vs projection logs
+  await pool.query(`ALTER TABLE submission_logs ADD COLUMN IF NOT EXISTS log_type TEXT NOT NULL DEFAULT 'result'`);
+
+  // Drop old (entity_id, cycle_deadline) unique index and replace with (entity_id, cycle_deadline, log_type)
+  await pool.query(`DROP INDEX IF EXISTS submission_logs_entity_cycle_uq`);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS submission_logs_entity_cycle_type_uq
+    ON submission_logs (entity_id, cycle_deadline, log_type)
+  `);
 
   await ensureSeedRows(
     pool,
@@ -1079,6 +1192,7 @@ export async function createKPI(payload) {
 
     const academicYearStart = kpi.academicYearStart ?? goalRow.academic_year_start;
     const responsibleUnit = kpi.responsibleUnit || goalRow.responsible_unit;
+    const deadline = goalRow.end_date ?? kpi.deadline ?? null;
 
     const { rows } = await dbClient.query(
       `INSERT INTO kpis (
@@ -1099,7 +1213,7 @@ export async function createKPI(payload) {
         kpi.unit,
         academicYearStart,
         responsibleUnit,
-        kpi.deadline,
+        deadline,
         kpi.status,
         kpi.updatedAt,
         kpi.updatedBy,
@@ -1167,7 +1281,8 @@ export async function updateKPI(id, payload) {
             result_updated_by = $19,
             projection_values = $20,
             projection_updated_at = $21,
-            projection_updated_by = $22
+            projection_updated_by = $22,
+            submission_history = $23
       WHERE id = $1
       RETURNING *`,
       [
@@ -1193,6 +1308,7 @@ export async function updateKPI(id, payload) {
         JSON.stringify(merged.projectionValues ?? []),
         merged.projectionUpdatedAt ?? null,
         merged.projectionUpdatedBy ?? null,
+        JSON.stringify(merged.submissionHistory ?? []),
       ]
     );
 
@@ -1254,6 +1370,8 @@ export async function createActionPlan(payload) {
       }
     }
 
+    const deadline = goalRow.end_date ?? actionPlan.deadline ?? null;
+
     const { rows } = await dbClient.query(
       `INSERT INTO action_plans (
         id, goal_id, kpi_id, title, description, responsible_unit, assigned_to,
@@ -1271,7 +1389,7 @@ export async function createActionPlan(payload) {
         actionPlan.description,
         actionPlan.responsibleUnit || goalRow.responsible_unit,
         actionPlan.assignedTo,
-        actionPlan.deadline,
+        deadline,
         actionPlan.status,
         actionPlan.progress,
         actionPlan.createdAt,
@@ -1343,7 +1461,16 @@ export async function updateActionPlan(id, payload) {
             updated_by = $12,
             notes = $13,
             priority = $14,
-            academic_year_start = $15
+            academic_year_start = $15,
+            lineage_key = $16,
+            result_type = $17,
+            result_value = $18,
+            result_updated_at = $19,
+            result_updated_by = $20,
+            projection_values = $21,
+            projection_updated_at = $22,
+            projection_updated_by = $23,
+            submission_history = $24
       WHERE id = $1
       RETURNING *`,
       [
@@ -1362,6 +1489,15 @@ export async function updateActionPlan(id, payload) {
         merged.notes,
         merged.priority,
         merged.academicYearStart ?? goalRow.academic_year_start,
+        merged.lineageKey ?? null,
+        merged.resultType ?? null,
+        merged.resultValue ?? null,
+        merged.resultUpdatedAt ?? null,
+        merged.resultUpdatedBy ?? null,
+        JSON.stringify(merged.projectionValues ?? []),
+        merged.projectionUpdatedAt ?? null,
+        merged.projectionUpdatedBy ?? null,
+        JSON.stringify(merged.submissionHistory ?? []),
       ]
     );
 
@@ -1571,6 +1707,221 @@ export async function addMilestoneEvidence(id, payload) {
   } finally {
     dbClient.release();
   }
+}
+
+export async function getKPIById(id) {
+  if (!pool) return null;
+  const { rows } = await pool.query('SELECT * FROM kpis WHERE id = $1', [id]);
+  return rows[0] ? rowToKpi(rows[0]) : null;
+}
+
+export async function getActionPlanById(id) {
+  if (!pool) return null;
+  const { rows } = await pool.query('SELECT * FROM action_plans WHERE id = $1', [id]);
+  return rows[0] ? rowToActionPlan(rows[0]) : null;
+}
+
+function isDeadlinePassed(deadline) {
+  const d = new Date(deadline);
+  d.setHours(23, 59, 59, 999);
+  return Date.now() > d.getTime();
+}
+
+export async function extendKPIDeadline(id, { newDeadline, extendedBy }) {
+  if (!newDeadline) throw createHttpError(400, 'newDeadline is required');
+  if (!extendedBy) throw createHttpError(400, 'extendedBy is required');
+
+  const client = ensurePool();
+  const dbClient = await client.connect();
+
+  try {
+    await dbClient.query('BEGIN');
+
+    const existingRow = await getKpiRowById(dbClient, id);
+    if (!existingRow) throw createHttpError(404, 'KPI not found');
+
+    const kpi = rowToKpi(existingRow);
+    const historyEntry = {
+      cycleDeadline: kpi.deadline,
+      loggedAt: new Date().toISOString(),
+      loggedBy: extendedBy,
+      resultType: kpi.resultType ?? null,
+      resultValue: kpi.resultValue ?? null,
+      projectionValues: kpi.projectionValues ?? [],
+    };
+    const newHistory = [...(kpi.submissionHistory ?? []), historyEntry];
+
+    const { rows } = await dbClient.query(
+      `UPDATE kpis
+          SET deadline = $2,
+              submission_history = $3,
+              updated_at = $4,
+              updated_by = $5
+        WHERE id = $1
+        RETURNING *`,
+      [id, newDeadline, JSON.stringify(newHistory), new Date().toISOString(), extendedBy]
+    );
+
+    await dbClient.query('COMMIT');
+    return rowToKpi(rows[0]);
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
+export async function extendActionPlanDeadline(id, { newDeadline, extendedBy }) {
+  if (!newDeadline) throw createHttpError(400, 'newDeadline is required');
+  if (!extendedBy) throw createHttpError(400, 'extendedBy is required');
+
+  const client = ensurePool();
+  const dbClient = await client.connect();
+
+  try {
+    await dbClient.query('BEGIN');
+
+    const existingRow = await getActionPlanRowById(dbClient, id);
+    if (!existingRow) throw createHttpError(404, 'Action plan not found');
+
+    const action = rowToActionPlan(existingRow);
+    const historyEntry = {
+      cycleDeadline: action.deadline,
+      loggedAt: new Date().toISOString(),
+      loggedBy: extendedBy,
+      resultType: action.resultType ?? null,
+      resultValue: action.resultValue ?? null,
+      projectionValues: action.projectionValues ?? [],
+    };
+    const newHistory = [...(action.submissionHistory ?? []), historyEntry];
+
+    const { rows } = await dbClient.query(
+      `UPDATE action_plans
+          SET deadline = $2,
+              submission_history = $3,
+              updated_at = $4,
+              updated_by = $5
+        WHERE id = $1
+        RETURNING *`,
+      [id, newDeadline, JSON.stringify(newHistory), new Date().toISOString(), extendedBy]
+    );
+
+    await dbClient.query('COMMIT');
+    return rowToActionPlan(rows[0]);
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
+export { isDeadlinePassed };
+
+export async function insertSubmissionLog({
+  entityType,
+  entityId,
+  entityTitle,
+  goalId,
+  academicYearStart,
+  resultData,
+  projectionData,
+  submittedBy,
+  extendedBy,
+  cycleDeadline,
+  logType = 'result',
+}) {
+  if (!pool) return null;
+  const id = generateId('LOG');
+  // Upsert: before the deadline, overwrite the row for this entity+cycle+logType.
+  // After the admin extends the deadline, cycle_deadline changes so a new row is created.
+  const { rows } = await pool.query(
+    `INSERT INTO submission_logs (
+      id, entity_type, entity_id, entity_title, goal_id, academic_year_start,
+      result_data, projection_data, submitted_by, extended_by, cycle_deadline, log_type, logged_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()
+    )
+    ON CONFLICT (entity_id, cycle_deadline, log_type) DO UPDATE SET
+      entity_title       = EXCLUDED.entity_title,
+      result_data        = EXCLUDED.result_data,
+      projection_data    = EXCLUDED.projection_data,
+      submitted_by       = EXCLUDED.submitted_by,
+      extended_by        = EXCLUDED.extended_by,
+      logged_at          = NOW()
+    RETURNING *`,
+    [
+      id,
+      entityType,
+      entityId,
+      entityTitle,
+      goalId ?? null,
+      academicYearStart ?? null,
+      JSON.stringify(resultData ?? {}),
+      JSON.stringify(projectionData ?? []),
+      submittedBy ?? null,
+      extendedBy,
+      cycleDeadline ?? null,
+      logType,
+    ]
+  );
+  return rows[0];
+}
+
+export async function getSubmissionLogsByEntity(entityType, entityId) {
+  if (!pool) return [];
+  const { rows } = await pool.query(
+    `SELECT * FROM submission_logs
+      WHERE entity_type = $1 AND entity_id = $2
+      ORDER BY logged_at ASC`,
+    [entityType, entityId]
+  );
+  return rows.map(rowToSubmissionLog);
+}
+
+export async function getAllSubmissionLogs({ entityType, goalId, academicYearStart } = {}) {
+  if (!pool) return [];
+  const conditions = [];
+  const values = [];
+
+  if (entityType) {
+    values.push(entityType);
+    conditions.push(`entity_type = $${values.length}`);
+  }
+  if (goalId) {
+    values.push(goalId);
+    conditions.push(`goal_id = $${values.length}`);
+  }
+  if (academicYearStart != null) {
+    values.push(academicYearStart);
+    conditions.push(`academic_year_start = $${values.length}`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await pool.query(
+    `SELECT * FROM submission_logs ${where} ORDER BY logged_at DESC`,
+    values
+  );
+  return rows.map(rowToSubmissionLog);
+}
+
+function rowToSubmissionLog(row) {
+  return {
+    id: row.id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    entityTitle: row.entity_title,
+    goalId: row.goal_id ?? undefined,
+    academicYearStart: row.academic_year_start ?? undefined,
+    resultData: row.result_data ?? {},
+    projectionData: Array.isArray(row.projection_data) ? row.projection_data : [],
+    submittedBy: row.submitted_by ?? undefined,
+    extendedBy: row.extended_by,
+    cycleDeadline: row.cycle_deadline ?? undefined,
+    logType: row.log_type ?? 'result',
+    loggedAt: row.logged_at,
+  };
 }
 
 export async function deleteKPI(id) {

@@ -12,6 +12,15 @@ export interface AuthSession {
   role: UserRole;
   unit?: string;
   loginMode: LoginMode;
+  token?: string;
+}
+
+export interface AuthorizedUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  createdAt: string;
 }
 
 export interface ViewerAccount {
@@ -59,6 +68,36 @@ export type KpiResultType =
   | 'text'
   | 'boolean';
 
+export interface SubmissionHistoryEntry {
+  cycleDeadline: string;
+  loggedAt: string;
+  loggedBy: string;
+  resultType: KpiResultType | null;
+  resultValue: string | null;
+  projectionValues: string[];
+}
+
+export interface SubmissionLog {
+  id: string;
+  entityType: 'kpi' | 'action_plan';
+  entityId: string;
+  entityTitle: string;
+  goalId?: string;
+  academicYearStart?: number;
+  resultData: {
+    resultType: KpiResultType | null;
+    resultValue: string | null;
+    resultUpdatedAt: string | null;
+    resultUpdatedBy: string | null;
+  };
+  projectionData: string[];
+  submittedBy?: string;
+  extendedBy: string;
+  cycleDeadline?: string;
+  logType?: 'result' | 'projection';
+  loggedAt: string;
+}
+
 export interface Goal {
   id: string;
   title: string;
@@ -88,7 +127,7 @@ export interface KPI {
   unit: string;
   academicYearStart: number;
   responsibleUnit: string;
-  deadline: string;
+  deadline?: string;
   status: GoalStatus;
   updatedAt: string;
   updatedBy: string;
@@ -101,6 +140,7 @@ export interface KPI {
   projectionValues?: string[];
   projectionUpdatedAt?: string;
   projectionUpdatedBy?: string;
+  submissionHistory?: SubmissionHistoryEntry[];
 }
 
 export interface ActionPlan {
@@ -111,7 +151,7 @@ export interface ActionPlan {
   description: string;
   responsibleUnit: string;
   assignedTo: string;
-  deadline: string;
+  deadline?: string;
   status: ActionStatus;
   progress: number;
   createdAt: string;
@@ -120,6 +160,15 @@ export interface ActionPlan {
   notes: string;
   priority: Priority;
   academicYearStart?: number;
+  lineageKey?: string;
+  resultType?: KpiResultType;
+  resultValue?: string;
+  resultUpdatedAt?: string;
+  resultUpdatedBy?: string;
+  projectionValues?: string[];
+  projectionUpdatedAt?: string;
+  projectionUpdatedBy?: string;
+  submissionHistory?: SubmissionHistoryEntry[];
 }
 
 export interface Assignment {
