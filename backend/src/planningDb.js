@@ -945,6 +945,21 @@ export async function initPlanningDb() {
   await pool.query(createActionPlansTableSql);
   await pool.query(createMilestonesTableSql);
 
+  // Migrations: add new columns if they don't exist yet
+  const migrations = [
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS lineage_key TEXT`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_type TEXT`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_value TEXT`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_updated_at TEXT`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS result_updated_by TEXT`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS projection_values JSONB`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS projection_updated_at TEXT`,
+    `ALTER TABLE kpis ADD COLUMN IF NOT EXISTS projection_updated_by TEXT`,
+  ];
+  for (const sql of migrations) {
+    await pool.query(sql);
+  }
+
   await ensureSeedRows(
     pool,
     seedKpis,
