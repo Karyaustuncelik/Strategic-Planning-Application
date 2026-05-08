@@ -95,9 +95,10 @@ const allowedOrigins = String(process.env.CORS_ORIGIN || '*')
 // ─── SAML Strategy ────────────────────────────────────────────────────────────
 const SSO_CERT = process.env.SSO_CERT || '';
 if (!SSO_CERT) {
-  console.warn('⚠️  SSO_CERT is not set — SAML authentication will not work.');
+  console.warn('⚠️  SSO_CERT is not set — SAML authentication disabled.');
 }
 
+if (SSO_CERT) {
 // PEM header/footer ve whitespace varsa temizle — node-saml bare base64 bekliyor
 const CERTIFICATE = SSO_CERT
   .replace(/-----BEGIN CERTIFICATE-----/g, '')
@@ -135,6 +136,7 @@ passport.use(
     (_profile, done) => done(null)
   )
 );
+} // end if (SSO_CERT)
 
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
