@@ -18,9 +18,7 @@ export function KPIModal({ kpi, userRole, userUnit, onSave, onClose }: KPIModalP
     targetValue: 0,
     currentValue: 0,
     unit: '',
-    year: 2025,
     responsibleUnit: userUnit || 'Research Department',
-    deadline: '2025-12-31',
     status: 'On Track',
     goalId: '',
   });
@@ -56,9 +54,8 @@ export function KPIModal({ kpi, userRole, userUnit, onSave, onClose }: KPIModalP
       targetValue: formData.targetValue!,
       currentValue: formData.currentValue!,
       unit: formData.unit!,
-      year: formData.year!,
+      academicYearStart: formData.academicYearStart ?? new Date().getFullYear(),
       responsibleUnit: formData.responsibleUnit!,
-      deadline: formData.deadline!,
       status: formData.status as GoalStatus,
       updatedAt: now,
       updatedBy: userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${formData.responsibleUnit} Manager`
@@ -159,38 +156,6 @@ export function KPIModal({ kpi, userRole, userUnit, onSave, onClose }: KPIModalP
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 placeholder="e.g., %, count"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-700 mb-2">
-                Year
-              </label>
-              <select
-                value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={2023}>2023</option>
-                <option value={2024}>2024</option>
-                <option value={2025}>2025</option>
-                <option value={2026}>2026</option>
-                <option value={2027}>2027</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-gray-700 mb-2">
-                Deadline
-              </label>
-              <input
-                type="date"
-                value={formData.deadline}
-                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />

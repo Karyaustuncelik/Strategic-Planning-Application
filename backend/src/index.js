@@ -18,22 +18,61 @@ import {
   assignGoalTrees,
   deleteGoal,
   pool,
+  initAuthorizedUsers,
+  getAuthorizedUserByEmail,
+  getAllAuthorizedUsers,
+  createAuthorizedUser,
+  updateAuthorizedUser,
+  deleteAuthorizedUser,
 } from './db.js';
 import {
   initPlanningDb,
   getKPIs,
   createKPI,
   updateKPI,
+  getKPIById,
+  extendKPIDeadline,
   getActionPlans,
   createActionPlan,
   updateActionPlan,
+  getActionPlanById,
+  extendActionPlanDeadline,
   getMilestones,
   createMilestone,
   addMilestoneProgressUpdate,
   addMilestoneEvidence,
   deleteKPI,
   deleteActionPlan,
+  isDeadlinePassed,
+  insertSubmissionLog,
+  getSubmissionLogsByEntity,
+  getAllSubmissionLogs,
 } from './planningDb.js';
+
+const RESULT_FIELDS = new Set([
+  'resultType', 'result_type',
+  'resultValue', 'result_value',
+  'resultUpdatedAt', 'result_updated_at',
+  'resultUpdatedBy', 'result_updated_by',
+]);
+
+const PROJECTION_FIELDS = new Set([
+  'projectionValues', 'projection_values',
+  'projectionUpdatedAt', 'projection_updated_at',
+  'projectionUpdatedBy', 'projection_updated_by',
+]);
+
+function hasResultOrProjectionFields(body) {
+  return Object.keys(body).some((k) => RESULT_FIELDS.has(k) || PROJECTION_FIELDS.has(k));
+}
+
+function hasResultFields(body) {
+  return Object.keys(body).some((k) => RESULT_FIELDS.has(k));
+}
+
+function hasProjectionFields(body) {
+  return Object.keys(body).some((k) => PROJECTION_FIELDS.has(k));
+}
 
 const app = express();
 const PORT = process.env.PORT || 9001;
@@ -104,10 +143,24 @@ passport.deserializeUser((user, done) => done(null, user));
 
 function generateJwt(user) {
   return jwt.sign(
-    { email: user.email, name: user.name, role: 'Strategy Office' },
+    { email: user.email, name: user.name, role: user.role ?? 'Viewer' },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
+}
+
+function requireAdmin(req, res, next) {
+  const authHeader = req.headers.authorization ?? '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'Strategy Office') return res.status(403).json({ error: 'Forbidden: admin only' });
+    req.adminUser = decoded;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -120,49 +173,39 @@ app.use(passport.initialize());
 // 1. Login başlatır → Azure AD'ye yönlendirir
 app.get('/api/auth/saml/login', passport.authenticate('saml', { failureRedirect: '/', failureFlash: false }));
 
-// 2. Local dev callback
-app.post(
-  '/api/auth/saml/callback',
-  (req, res, next) => {
-    passport.authenticate('saml', { session: false }, (err, user) => {
-      if (err || !user) {
-        console.error('SAML Authentication error:', err);
-        return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
+async function handleSamlCallback(req, res, next) {
+  passport.authenticate('saml', { session: false }, async (err, user) => {
+    if (err || !user) {
+      console.error('SAML Authentication error:', err);
+      return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
+    }
+    try {
+      const authorizedUser = await getAuthorizedUserByEmail(user.email);
+      if (!authorizedUser) {
+        console.warn(`SSO login rejected — not in authorized_users: ${user.email}`);
+        return res.redirect(303, `${CLIENT_URL}/?sso_error=unauthorized`);
       }
-      const token = generateJwt(user);
+      const token = generateJwt({ email: user.email, name: authorizedUser.fullName || user.name, role: authorizedUser.role });
       res.cookie('spu_sso_token', token, {
         httpOnly: false,
         secure: true,
         sameSite: 'lax',
-        maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
+        maxAge: 60 * 1000,
         path: '/'
       });
       return res.redirect(303, CLIENT_URL + '/');
-    })(req, res, next);
-  }
-);
+    } catch (dbErr) {
+      console.error('SSO DB lookup error:', dbErr);
+      return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
+    }
+  })(req, res, next);
+}
+
+// 2. Local dev callback
+app.post('/api/auth/saml/callback', handleSamlCallback);
 
 // 3. Production callback
-app.post(
-  '/api/auth/saml/module.php/saml/sp/saml2-acs.php/default-sp',
-  (req, res, next) => {
-    passport.authenticate('saml', { session: false }, (err, user) => {
-      if (err || !user) {
-        console.error('SAML Authentication error:', err);
-        return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
-      }
-      const token = generateJwt(user);
-      res.cookie('spu_sso_token', token, {
-        httpOnly: false,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
-        path: '/'
-      });
-      return res.redirect(303, CLIENT_URL + '/');
-    })(req, res, next);
-  }
-);
+app.post('/api/auth/saml/module.php/saml/sp/saml2-acs.php/default-sp', handleSamlCallback);
 // ──────────────────────────────────────────────────────────────────────────────
 
 app.use((req, res, next) => {
@@ -280,11 +323,13 @@ app.post('/api/auth/login', async (req, res) => {
         return res.status(401).json({ error: 'Invalid admin credentials' });
       }
 
+      const adminToken = generateJwt({ email: ADMIN_LOGIN_USERNAME, name: 'Strategy Office Manager', role: 'Strategy Office' });
       return res.json({
         id: 'admin',
         name: 'Strategy Office Manager',
         role: 'Strategy Office',
         loginMode: 'admin',
+        token: adminToken,
       });
     }
 
@@ -493,10 +538,111 @@ app.post('/api/kpis', async (req, res) => {
 
 app.patch('/api/kpis/:id', async (req, res) => {
   try {
-    const kpi = await updateKPI(req.params.id, req.body ?? {});
+    const body = req.body ?? {};
+    const isResultOrProjection = hasResultOrProjectionFields(body);
+
+    if (isResultOrProjection) {
+      const kpi = await getKPIById(req.params.id);
+      if (!kpi) return res.status(404).json({ error: 'KPI not found' });
+      const goal = await getGoalById(kpi.goalId);
+      const deadline = goal?.endDate ?? kpi.deadline;
+      if (isDeadlinePassed(deadline)) {
+        return res.status(423).json({ error: 'KPI is locked: the goal deadline has passed. An admin must extend the goal deadline to allow edits.' });
+      }
+    }
+
+    const kpi = await updateKPI(req.params.id, body);
+
+    // Log result and projection saves as separate entries
+    if (isResultOrProjection) {
+      const goal = await getGoalById(kpi.goalId);
+      const cycleDeadline = goal?.endDate ?? kpi.deadline ?? null;
+      const baseLog = {
+        entityType: 'kpi',
+        entityId: kpi.id,
+        entityTitle: kpi.name,
+        goalId: kpi.goalId,
+        academicYearStart: kpi.academicYearStart,
+        submittedBy: kpi.assignedTo ?? null,
+        cycleDeadline,
+      };
+
+      if (hasResultFields(body)) {
+        await insertSubmissionLog({
+          ...baseLog,
+          logType: 'result',
+          resultData: {
+            resultType: kpi.resultType ?? null,
+            resultValue: kpi.resultValue ?? null,
+            resultUpdatedAt: kpi.resultUpdatedAt ?? null,
+            resultUpdatedBy: kpi.resultUpdatedBy ?? null,
+          },
+          projectionData: [],
+          extendedBy: body.resultUpdatedBy ?? body.updatedBy ?? 'system',
+        });
+      }
+
+      if (hasProjectionFields(body)) {
+        await insertSubmissionLog({
+          ...baseLog,
+          logType: 'projection',
+          resultData: {},
+          projectionData: kpi.projectionValues ?? [],
+          extendedBy: body.projectionUpdatedBy ?? body.updatedBy ?? 'system',
+        });
+      }
+    }
+
     res.json(kpi);
   } catch (err) {
     handleApiError(res, err, 'PATCH /api/kpis/:id failed');
+  }
+});
+
+app.post('/api/kpis/:id/extend-deadline', async (req, res) => {
+  try {
+    const { newDeadline, extendedBy } = req.body ?? {};
+    if (!newDeadline) return res.status(400).json({ error: 'newDeadline is required' });
+    if (!extendedBy) return res.status(400).json({ error: 'extendedBy is required' });
+
+    // 1. Read current state before changing anything
+    const kpi = await getKPIById(req.params.id);
+    if (!kpi) return res.status(404).json({ error: 'KPI not found' });
+    const goal = await getGoalById(kpi.goalId);
+
+    // 2. Snapshot current results/projections into submission_logs
+    await insertSubmissionLog({
+      entityType: 'kpi',
+      entityId: kpi.id,
+      entityTitle: kpi.name,
+      goalId: kpi.goalId,
+      academicYearStart: kpi.academicYearStart,
+      resultData: {
+        resultType: kpi.resultType ?? null,
+        resultValue: kpi.resultValue ?? null,
+        resultUpdatedAt: kpi.resultUpdatedAt ?? null,
+        resultUpdatedBy: kpi.resultUpdatedBy ?? null,
+      },
+      projectionData: kpi.projectionValues ?? [],
+      submittedBy: kpi.assignedTo ?? null,
+      extendedBy,
+      cycleDeadline: goal?.endDate ?? kpi.deadline ?? null,
+    });
+
+    // 3. Apply the new deadline
+    const updated = await extendKPIDeadline(req.params.id, { newDeadline, extendedBy });
+    res.json(updated);
+  } catch (err) {
+    handleApiError(res, err, 'POST /api/kpis/:id/extend-deadline failed');
+  }
+});
+
+app.get('/api/kpis/:id/history', async (req, res) => {
+  try {
+    const logs = await getSubmissionLogsByEntity('kpi', req.params.id);
+    res.json(logs);
+  } catch (err) {
+    handleApiError(res, err, 'GET /api/kpis/:id/history failed');
   }
 });
 
@@ -530,10 +676,126 @@ app.post('/api/actions', async (req, res) => {
 
 app.patch('/api/actions/:id', async (req, res) => {
   try {
-    const actionPlan = await updateActionPlan(req.params.id, req.body ?? {});
+    const body = req.body ?? {};
+    const isResultOrProjection = hasResultOrProjectionFields(body);
+
+    if (isResultOrProjection) {
+      const action = await getActionPlanById(req.params.id);
+      if (!action) return res.status(404).json({ error: 'Action plan not found' });
+      const goal = await getGoalById(action.goalId);
+      const deadline = goal?.endDate ?? action.deadline;
+      if (isDeadlinePassed(deadline)) {
+        return res.status(423).json({ error: 'Action plan is locked: the goal deadline has passed. An admin must extend the goal deadline to allow edits.' });
+      }
+    }
+
+    const actionPlan = await updateActionPlan(req.params.id, body);
+
+    // Log result and projection saves as separate entries
+    if (isResultOrProjection) {
+      const goal = await getGoalById(actionPlan.goalId);
+      const cycleDeadline = goal?.endDate ?? actionPlan.deadline ?? null;
+      const baseLog = {
+        entityType: 'action_plan',
+        entityId: actionPlan.id,
+        entityTitle: actionPlan.title,
+        goalId: actionPlan.goalId,
+        academicYearStart: actionPlan.academicYearStart,
+        submittedBy: actionPlan.assignedTo ?? null,
+        cycleDeadline,
+      };
+
+      if (hasResultFields(body)) {
+        await insertSubmissionLog({
+          ...baseLog,
+          logType: 'result',
+          resultData: {
+            resultType: actionPlan.resultType ?? null,
+            resultValue: actionPlan.resultValue ?? null,
+            resultUpdatedAt: actionPlan.resultUpdatedAt ?? null,
+            resultUpdatedBy: actionPlan.resultUpdatedBy ?? null,
+          },
+          projectionData: [],
+          extendedBy: body.resultUpdatedBy ?? body.updatedBy ?? 'system',
+        });
+      }
+
+      if (hasProjectionFields(body)) {
+        await insertSubmissionLog({
+          ...baseLog,
+          logType: 'projection',
+          resultData: {},
+          projectionData: actionPlan.projectionValues ?? [],
+          extendedBy: body.projectionUpdatedBy ?? body.updatedBy ?? 'system',
+        });
+      }
+    }
+
     res.json(actionPlan);
   } catch (err) {
     handleApiError(res, err, 'PATCH /api/actions/:id failed');
+  }
+});
+
+app.post('/api/actions/:id/extend-deadline', async (req, res) => {
+  try {
+    const { newDeadline, extendedBy } = req.body ?? {};
+    if (!newDeadline) return res.status(400).json({ error: 'newDeadline is required' });
+    if (!extendedBy) return res.status(400).json({ error: 'extendedBy is required' });
+
+    // 1. Read current state before changing anything
+    const action = await getActionPlanById(req.params.id);
+    if (!action) return res.status(404).json({ error: 'Action plan not found' });
+    const goal = await getGoalById(action.goalId);
+
+    // 2. Snapshot current results/projections into submission_logs
+    await insertSubmissionLog({
+      entityType: 'action_plan',
+      entityId: action.id,
+      entityTitle: action.title,
+      goalId: action.goalId,
+      academicYearStart: action.academicYearStart,
+      resultData: {
+        resultType: action.resultType ?? null,
+        resultValue: action.resultValue ?? null,
+        resultUpdatedAt: action.resultUpdatedAt ?? null,
+        resultUpdatedBy: action.resultUpdatedBy ?? null,
+      },
+      projectionData: action.projectionValues ?? [],
+      submittedBy: action.assignedTo ?? null,
+      extendedBy,
+      cycleDeadline: goal?.endDate ?? action.deadline ?? null,
+    });
+
+    // 3. Apply the new deadline
+    const updated = await extendActionPlanDeadline(req.params.id, { newDeadline, extendedBy });
+    res.json(updated);
+  } catch (err) {
+    handleApiError(res, err, 'POST /api/actions/:id/extend-deadline failed');
+  }
+});
+
+app.get('/api/actions/:id/history', async (req, res) => {
+  try {
+    const logs = await getSubmissionLogsByEntity('action_plan', req.params.id);
+    res.json(logs);
+  } catch (err) {
+    handleApiError(res, err, 'GET /api/actions/:id/history failed');
+  }
+});
+
+app.get('/api/submission-logs', async (req, res) => {
+  try {
+    const logs = await getAllSubmissionLogs({
+      entityType: req.query.entityType ? String(req.query.entityType) : undefined,
+      goalId: req.query.goalId ? String(req.query.goalId) : undefined,
+      academicYearStart: req.query.academicYearStart
+        ? parseOptionalInt(req.query.academicYearStart, 'academicYearStart')
+        : undefined,
+    });
+    res.json(logs);
+  } catch (err) {
+    handleApiError(res, err, 'GET /api/submission-logs failed');
   }
 });
 
@@ -603,9 +865,52 @@ app.delete('/api/actions/:id', async (req, res) => {
   }
 });
 
+// ─── User Management (admin-only) ─────────────────────────────────────────────
+
+app.get('/api/users', requireAdmin, async (_req, res) => {
+  try {
+    const users = await getAllAuthorizedUsers();
+    res.json(users);
+  } catch (err) {
+    handleApiError(res, err, 'GET /api/users failed');
+  }
+});
+
+app.post('/api/users', requireAdmin, async (req, res) => {
+  try {
+    const user = await createAuthorizedUser(req.body ?? {});
+    res.status(201).json(user);
+  } catch (err) {
+    handleApiError(res, err, 'POST /api/users failed');
+  }
+});
+
+app.patch('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const user = await updateAuthorizedUser(Number(req.params.id), req.body ?? {});
+    res.json(user);
+  } catch (err) {
+    handleApiError(res, err, 'PATCH /api/users/:id failed');
+  }
+});
+
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    await deleteAuthorizedUser(Number(req.params.id));
+    res.sendStatus(204);
+  } catch (err) {
+    handleApiError(res, err, 'DELETE /api/users/:id failed');
+  }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function start() {
   await initDb();
   await initPlanningDb();
+  const bootstrapAdminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL || 'mabeilgaz@gmail.com';
+  const bootstrapAdminName = process.env.BOOTSTRAP_ADMIN_NAME || 'Admin';
+  await initAuthorizedUsers(bootstrapAdminEmail, bootstrapAdminName);
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend listening on port ${PORT}`);
   });

@@ -150,11 +150,7 @@ export function KPIView({ userRole, userUnit }: KPIViewProps) {
               <div className="pt-4 border-t border-gray-200 space-y-2 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>ID: {kpi.id}</span>
-                  <span>Year: {kpi.year}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
                   <span>Unit: {kpi.responsibleUnit}</span>
-                  <span>Deadline: {new Date(kpi.deadline).toLocaleDateString()}</span>
                 </div>
                 <div className="text-gray-500 text-xs pt-2">
                   Last updated by {kpi.updatedBy} on {new Date(kpi.updatedAt).toLocaleString()}
