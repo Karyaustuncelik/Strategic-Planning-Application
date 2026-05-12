@@ -410,19 +410,44 @@ export default function App() {
         className={
           isCompactLayout
             ? 'hidden'
-            : 'flex w-72 flex-col border-r border-[#d7e3f2] bg-[#f7fafd]'
+            : 'flex w-64 flex-col border-r border-[#d7e3f2] bg-[#f7fafd]'
         }
       >
-        <div className="flex h-full flex-col px-4 py-5">
-          <div className="flex-1">
+        <div className="flex h-full flex-col">
+          {/* App header */}
+          <div className="border-b border-[#d7e3f2] bg-[#15345c] px-5 py-4">
+            <div className="text-sm font-bold tracking-wide text-white">SPU</div>
+            <div className="text-[11px] text-blue-200 mt-0.5">Strategic Planning</div>
+          </div>
+
+          {/* User info */}
+          <div className="border-b border-[#d7e3f2] bg-white px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
+                {getInitials(currentUser.name)}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-[#15345c]">
+                  {currentUser.name}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {isViewer ? 'Viewer' : 'Admin'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto px-3 py-4">
             {renderNavigation()}
           </div>
 
-          <div className="mt-6 border-t border-slate-200 pt-4">
+          {/* Logout */}
+          <div className="border-t border-[#d7e3f2] px-3 py-3">
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-3 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#d7e3f2] bg-white px-4 py-2.5 text-sm font-medium text-[#15345c] transition-colors hover:bg-blue-50"
             >
               <LogOut className="h-4 w-4" />
               {t('Logout')}
@@ -488,12 +513,12 @@ export default function App() {
                 {language === 'tr' ? 'EN' : 'TR'}
               </button>
 
-              <div className="min-w-[170px]">
+              <div className="w-[140px]">
                 <Select
                   value={selectedAcademicYearRange}
                   onValueChange={setSelectedAcademicYearRange}
                 >
-                  <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none">
+                  <SelectTrigger className="h-10 rounded-xl border-[#d7e3f2] bg-white text-sm text-[#15345c] shadow-none pr-8">
                     <SelectValue placeholder={t('Academic Year')} />
                   </SelectTrigger>
                   <SelectContent className="border-[#d7e3f2] bg-white shadow-[0_20px_40px_-24px_rgba(0,39,118,0.35)]">
