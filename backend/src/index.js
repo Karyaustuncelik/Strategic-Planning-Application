@@ -17,6 +17,7 @@ import {
   copyAcademicYearGoals,
   assignGoalTrees,
   deleteGoal,
+  getUserByUsername,
   pool,
 } from './db.js';
 import {
@@ -102,12 +103,44 @@ passport.use(
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-function generateJwt(user) {
+function generateJwt(user, role = 'Strategy Office') {
   return jwt.sign(
-    { email: user.email, name: user.name, role: 'Strategy Office' },
+    { email: user.email, name: user.name, role },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
+}
+
+/** admin → 'Strategy Office', user → 'Viewer' */
+function dbRoleToAppRole(dbRole) {
+  return dbRole === 'admin' ? 'Strategy Office' : 'Viewer';
+}
+
+/** Extract Sabanci username from email (e.g. 'karya.ustuncelik' from 'karya.ustuncelik@sabanciuniv.edu') */
+function usernameFromEmail(email = '') {
+  return email.split('@')[0].toLowerCase();
+}
+
+async function handleSamlUser(user, res) {
+  const email = user.email || user.nameID || '';
+  const username = usernameFromEmail(email);
+  const dbUser = await getUserByUsername(username);
+
+  if (!dbUser) {
+    console.warn(`SSO login denied for unknown user: ${username}`);
+    return res.redirect(303, `${CLIENT_URL}/?error=unauthorized`);
+  }
+
+  const appRole = dbRoleToAppRole(dbUser.role);
+  const token = generateJwt({ email, name: user.name || email }, appRole);
+  res.cookie('spu_sso_token', token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 1000,
+    path: '/',
+  });
+  return res.redirect(303, CLIENT_URL + '/');
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -118,26 +151,23 @@ app.use(passport.initialize());
 // ─── SAML Routes ──────────────────────────────────────────────────────────────
 
 // 1. Login başlatır → Azure AD'ye yönlendirir
-app.get('/api/auth/saml/login', passport.authenticate('saml', { failureRedirect: '/', failureFlash: false }));
+app.get('/api/auth/saml/login', (req, res, next) => {
+  if (!SSO_CERT) {
+    return res.redirect(303, `${CLIENT_URL}/?error=sso_not_configured`);
+  }
+  passport.authenticate('saml', { failureRedirect: '/', failureFlash: false })(req, res, next);
+});
 
 // 2. Local dev callback
 app.post(
   '/api/auth/saml/callback',
   (req, res, next) => {
-    passport.authenticate('saml', { session: false }, (err, user) => {
+    passport.authenticate('saml', { session: false }, async (err, user) => {
       if (err || !user) {
         console.error('SAML Authentication error:', err);
-        return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
+        return res.redirect(303, `${CLIENT_URL}/?error=sso_failed`);
       }
-      const token = generateJwt(user);
-      res.cookie('spu_sso_token', token, {
-        httpOnly: false,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
-        path: '/'
-      });
-      return res.redirect(303, CLIENT_URL + '/');
+      return handleSamlUser(user, res);
     })(req, res, next);
   }
 );
@@ -146,20 +176,12 @@ app.post(
 app.post(
   '/api/auth/saml/module.php/saml/sp/saml2-acs.php/default-sp',
   (req, res, next) => {
-    passport.authenticate('saml', { session: false }, (err, user) => {
+    passport.authenticate('saml', { session: false }, async (err, user) => {
       if (err || !user) {
         console.error('SAML Authentication error:', err);
-        return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
+        return res.redirect(303, `${CLIENT_URL}/?error=sso_failed`);
       }
-      const token = generateJwt(user);
-      res.cookie('spu_sso_token', token, {
-        httpOnly: false,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 1000, // 60 saniye — frontend okuduktan sonra silinir
-        path: '/'
-      });
-      return res.redirect(303, CLIENT_URL + '/');
+      return handleSamlUser(user, res);
     })(req, res, next);
   }
 );

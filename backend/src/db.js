@@ -52,6 +52,20 @@ const createUnitOwnersTableSql = `
   );
 `;
 
+// ─── SSO Users ───────────────────────────────────────────────────────────────
+const createSpuUsersTableSql = `
+  CREATE TABLE IF NOT EXISTS spu_users (
+    username   TEXT PRIMARY KEY,
+    role       TEXT NOT NULL DEFAULT 'user',
+    created_at TEXT NOT NULL DEFAULT NOW()::TEXT
+  );
+`;
+
+const seedSpuUsers = [
+  { username: 'karya.ustuncelik', role: 'admin' },
+  { username: 'ilgaz.sahin',      role: 'admin' },
+];
+
 const validGoalStatuses = new Set([
   'On Track',
   'At Risk',
@@ -732,6 +746,15 @@ export async function initDb() {
     await pool.query(createGoalsTableSql);
     await pool.query(createAssignmentsTableSql);
     await pool.query(createUnitOwnersTableSql);
+    await pool.query(createSpuUsersTableSql);
+
+    // Seed initial SSO users
+    for (const u of seedSpuUsers) {
+      await pool.query(
+        `INSERT INTO spu_users (username, role) VALUES ($1, $2) ON CONFLICT (username) DO NOTHING`,
+        [u.username, u.role]
+      );
+    }
 
     await ensureSeedRows(
       pool,
@@ -1717,6 +1740,27 @@ export async function deleteGoal(id) {
   } finally {
     dbClient.release();
   }
+}
+
+/** Returns the DB user row or null. username = part before @ in Sabanci email */
+export async function getUserByUsername(username) {
+  if (!pool) return null;
+  const { rows } = await pool.query(
+    'SELECT username, role FROM spu_users WHERE username = $1',
+    [username]
+  );
+  return rows[0] ?? null;
+}
+
+/** Add or update a user in spu_users */
+export async function upsertSpuUser(username, role) {
+  if (!pool) return;
+  await pool.query(
+    `INSERT INTO spu_users (username, role)
+     VALUES ($1, $2)
+     ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role`,
+    [username, role]
+  );
 }
 
 export { pool };

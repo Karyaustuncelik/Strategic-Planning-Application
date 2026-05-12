@@ -24,7 +24,6 @@ import { MilestoneManagement } from './components/MilestoneManagement';
 import { AcademicCalendarEditor } from './components/AcademicCalendarEditor';
 import { UnassignedGoalsView } from './components/UnassignedGoalsView';
 import { KpiProjectionComparisonView } from './components/KpiProjectionComparisonView';
-import { Login } from './components/Login';
 import {
   Select,
   SelectContent,
@@ -355,8 +354,53 @@ export default function App() {
   );
 
   if (!currentUser) {
+    const params = new URLSearchParams(window.location.search);
+    const ssoError = params.get('error');
+
+    if (ssoError === 'unauthorized') {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f4f8fc] p-8 text-center">
+          <div className="rounded-2xl border border-red-200 bg-white p-8 shadow-sm max-w-md w-full">
+            <div className="text-4xl mb-3">🚫</div>
+            <h1 className="text-lg font-semibold text-slate-900 mb-2">Erişim Reddedildi</h1>
+            <p className="text-sm text-slate-500 mb-5">
+              Sabanci hesabınız bu uygulamaya kayıtlı değil. Sistem yöneticisiyle iletişime geçin.
+            </p>
+            <a
+              href="/api/auth/saml/login"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#15345c] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#1a3f70] transition-colors"
+            >
+              Farklı hesapla dene
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    if (ssoError) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f4f8fc] p-8 text-center">
+          <div className="rounded-2xl border border-amber-200 bg-white p-8 shadow-sm max-w-md w-full">
+            <div className="text-4xl mb-3">⚠️</div>
+            <h1 className="text-lg font-semibold text-slate-900 mb-2">Giriş Başarısız</h1>
+            <p className="text-sm text-slate-500 mb-5">SSO bağlantısı sırasında bir hata oluştu.</p>
+            <a
+              href="/api/auth/saml/login"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#15345c] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#1a3f70] transition-colors"
+            >
+              Tekrar dene
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // No session → redirect to Sabanci SSO
+    window.location.href = '/api/auth/saml/login';
     return (
-      <Login onLogin={handleLogin} />
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f8fc]">
+        <p className="text-sm text-slate-500">Sabanci SSO'ya yönlendiriliyor…</p>
+      </div>
     );
   }
 
