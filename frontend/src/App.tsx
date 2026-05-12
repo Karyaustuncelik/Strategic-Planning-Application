@@ -414,23 +414,26 @@ export default function App() {
         }
       >
         <div className="flex h-full flex-col">
-          {/* App header */}
-          <div className="border-b border-[#d7e3f2] bg-[#15345c] px-5 py-4">
-            <div className="text-sm font-bold tracking-wide text-white">SPU</div>
-            <div className="text-[11px] text-blue-200 mt-0.5">Strategic Planning</div>
-          </div>
-
-          {/* User info */}
-          <div className="border-b border-[#d7e3f2] bg-white px-4 py-3">
+          {/* User info header */}
+          <div
+            className="shrink-0 px-4 py-5"
+            style={{
+              background: 'linear-gradient(160deg, #15345c 0%, #1e4f8a 100%)',
+              boxShadow: '0 4px 16px rgba(21,52,92,0.18)',
+            }}
+          >
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#15345c] text-xs font-bold text-white">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[#15345c]"
+                style={{ background: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+              >
                 {getInitials(currentUser.name)}
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-[#15345c]">
+                <div className="truncate text-sm font-semibold text-white">
                   {currentUser.name}
                 </div>
-                <div className="text-[11px] text-slate-400">
+                <div className="mt-0.5 text-[11px] font-medium text-blue-200">
                   {isViewer ? 'Viewer' : 'Admin'}
                 </div>
               </div>
