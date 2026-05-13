@@ -1761,6 +1761,100 @@ export async function upsertSpuUser(username, role) {
      ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role`,
     [username, role]
   );
+// ─── Authorized Users ─────────────────────────────────────────────────────────
+
+const VALID_ROLES = new Set(['Strategy Office', 'Unit Manager', 'Senior Management', 'Viewer']);
+
+function rowToAuthorizedUser(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    fullName: row.full_name,
+    role: row.role,
+    createdAt: row.created_at,
+  };
+}
+
+export async function initAuthorizedUsers(adminEmail, adminName) {
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS authorized_users (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      full_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'Viewer',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  // Seed the bootstrap admin so no one gets locked out on first deploy
+  if (adminEmail) {
+    await pool.query(
+      `INSERT INTO authorized_users (email, full_name, role)
+       VALUES ($1, $2, 'Strategy Office')
+       ON CONFLICT (email) DO NOTHING`,
+      [adminEmail.toLowerCase().trim(), adminName || 'Admin']
+    );
+  }
+}
+
+export async function getAuthorizedUserByEmail(email) {
+  if (!pool) return null;
+  const { rows } = await pool.query(
+    'SELECT * FROM authorized_users WHERE LOWER(email) = LOWER($1)',
+    [email]
+  );
+  return rows.length ? rowToAuthorizedUser(rows[0]) : null;
+}
+
+export async function getAllAuthorizedUsers() {
+  if (!pool) return [];
+  const { rows } = await pool.query(
+    'SELECT * FROM authorized_users ORDER BY created_at DESC'
+  );
+  return rows.map(rowToAuthorizedUser);
+}
+
+export async function createAuthorizedUser({ email, fullName, role }) {
+  const client = ensurePool();
+  if (!email?.trim()) throw createHttpError(400, 'email is required');
+  if (!fullName?.trim()) throw createHttpError(400, 'fullName is required');
+  if (!VALID_ROLES.has(role)) throw createHttpError(400, 'role is invalid');
+  try {
+    const { rows } = await client.query(
+      `INSERT INTO authorized_users (email, full_name, role)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [email.toLowerCase().trim(), fullName.trim(), role]
+    );
+    return rowToAuthorizedUser(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') throw createHttpError(409, 'A user with this email already exists');
+    throw err;
+  }
+}
+
+export async function updateAuthorizedUser(id, { fullName, role }) {
+  const client = ensurePool();
+  const sets = [];
+  const values = [id];
+  if (fullName !== undefined) { values.push(fullName.trim()); sets.push(`full_name = $${values.length}`); }
+  if (role !== undefined) {
+    if (!VALID_ROLES.has(role)) throw createHttpError(400, 'role is invalid');
+    values.push(role); sets.push(`role = $${values.length}`);
+  }
+  if (!sets.length) throw createHttpError(400, 'Nothing to update');
+  const { rows } = await client.query(
+    `UPDATE authorized_users SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
+    values
+  );
+  if (!rows.length) throw createHttpError(404, 'User not found');
+  return rowToAuthorizedUser(rows[0]);
+}
+
+export async function deleteAuthorizedUser(id) {
+  const client = ensurePool();
+  const { rowCount } = await client.query('DELETE FROM authorized_users WHERE id = $1', [id]);
+  if (!rowCount) throw createHttpError(404, 'User not found');
 }
 
 export { pool };

@@ -32,7 +32,7 @@ function toNumber(value?: string): number | null {
 function fmtVariance(v: number): string {
   const abs = Math.abs(v);
   const str = Number.isInteger(abs) ? String(abs) : abs.toFixed(1);
-  return (v > 0 ? '+' : v < 0 ? '−' : '') + str;
+  return (v > 0 ? '+' : v < 0 ? '-' : '') + str;
 }
 
 export function KpiProjectionComparisonView({
@@ -47,7 +47,7 @@ export function KpiProjectionComparisonView({
   const [selectedLineageKey, setSelectedLineageKey] = useState('');
   const isViewer = isViewerRole(userRole);
 
-  /* ── fetch ── */
+  /* —— fetch —— */
   useEffect(() => {
     let alive = true;
     setIsLoading(true);
@@ -63,7 +63,7 @@ export function KpiProjectionComparisonView({
     return () => { alive = false; };
   }, []);
 
-  /* ── scope KPIs by role ── */
+  /* —— scope KPIs by role —— */
   const scopedKpis = useMemo(() => {
     const sorted = [...kpis].sort((a, b) => a.academicYearStart - b.academicYearStart);
     if (isViewer) return sorted.filter((k) => k.assignedTo === userName);
@@ -71,7 +71,7 @@ export function KpiProjectionComparisonView({
     return sorted;
   }, [isViewer, kpis, userName, userUnit]);
 
-  /* ── group by lineageKey ── */
+  /* —— group by lineageKey —— */
   const groups = useMemo<ProjectionGroup[]>(() => {
     const map = new Map<string, ProjectionGroup>();
     for (const kpi of scopedKpis) {
@@ -101,7 +101,7 @@ export function KpiProjectionComparisonView({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [scopedKpis, selectedAcademicYearStart]);
 
-  /* ── auto-select first group ── */
+  /* —— auto-select first group —— */
   useEffect(() => {
     if (groups.length === 0) { setSelectedLineageKey(''); return; }
     if (!groups.some((g) => g.lineageKey === selectedLineageKey)) {
@@ -111,7 +111,7 @@ export function KpiProjectionComparisonView({
 
   const selectedGroup = groups.find((g) => g.lineageKey === selectedLineageKey) ?? null;
 
-  /* ── build matrix ── */
+  /* —— build matrix —— */
   const matrix = useMemo(() => {
     if (!selectedGroup) return null;
 
@@ -182,7 +182,7 @@ export function KpiProjectionComparisonView({
     };
   }, [selectedGroup]);
 
-  /* ── render ── */
+  /* —— render —— */
   if (isLoading) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center shadow-sm">
@@ -197,9 +197,6 @@ export function KpiProjectionComparisonView({
       {/* Page header */}
       <div>
         <h2 className="text-xl font-semibold text-slate-900">Projeksiyon Karşılaştırması</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Her yıl girilen 6 kutucuk tahmini gerçekleşen sonuçlarla karşılaştırılır.
-        </p>
       </div>
 
       {error && (
@@ -223,10 +220,11 @@ export function KpiProjectionComparisonView({
               value={selectedLineageKey}
               onChange={(e) => setSelectedLineageKey(e.target.value)}
               className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
             >
               {groups.map((g) => (
                 <option key={g.lineageKey} value={g.lineageKey}>
-                  {g.name} — {g.responsibleUnit}
+                  {g.name} → {g.responsibleUnit}
                 </option>
               ))}
             </select>
@@ -305,7 +303,6 @@ export function KpiProjectionComparisonView({
                         return (
                           <td
                             key={targetYear}
-                            title={undefined}
                             className={[
                               'px-4 py-3.5 text-center tabular-nums',
                               isDiagonal ? 'bg-blue-50 font-semibold text-blue-800' : 'text-slate-700',
@@ -373,7 +370,7 @@ export function KpiProjectionComparisonView({
       {!isLoading && groups.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-200 p-16 text-center text-sm text-slate-400">
           Henüz projeksiyon verisi girilmiş KPI yok.
-          Goal Hierarchy'den bir KPI için "Projection" ekleyin.
+          Goal Hierarchy&apos;den bir KPI için &quot;Projection&quot; ekleyin.
         </div>
       )}
     </div>

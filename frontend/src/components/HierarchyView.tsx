@@ -79,7 +79,6 @@ interface KpiDraft {
   targetValue: number;
   currentValue: number;
   unit: string;
-  deadline: string;
   status: GoalStatus;
   responsibleUnit: string;
   assignedTo: string;
@@ -87,9 +86,9 @@ interface KpiDraft {
 
 interface ActionDraft {
   goalId: string;
+  subgoalName: string;
   title: string;
   description: string;
-  deadline: string;
   status: ActionStatus;
   priority: Priority;
   responsibleUnit: string;
@@ -447,16 +446,31 @@ export function HierarchyView({
       (subGoal) => subGoal.parentId === mainGoal.id && subGoal.level === 1
     );
 
+    const directKpis = kpis.filter(
+      (kpi) =>
+        kpi.goalId === mainGoal.id &&
+        kpi.academicYearStart === selectedAcademicYearStart
+    ).length;
+
+    const directActions = actions.filter((action) => {
+      if (action.goalId !== mainGoal.id) return false;
+      return getActionYearStart(action) === selectedAcademicYearStart;
+    }).length;
+
     return {
       subGoals: subGoals.length,
-      kpis: subGoals.reduce(
-        (count, subGoal) => count + getSubGoalCounts(subGoal).kpis,
-        0
-      ),
-      actions: subGoals.reduce(
-        (count, subGoal) => count + getSubGoalCounts(subGoal).actions,
-        0
-      ),
+      kpis:
+        directKpis +
+        subGoals.reduce(
+          (count, subGoal) => count + getSubGoalCounts(subGoal).kpis,
+          0
+        ),
+      actions:
+        directActions +
+        subGoals.reduce(
+          (count, subGoal) => count + getSubGoalCounts(subGoal).actions,
+          0
+        ),
     };
   };
 
@@ -598,7 +612,6 @@ export function HierarchyView({
         unit: kpiDraft.unit,
         academicYearStart: selectedAcademicYearStart,
         responsibleUnit: kpiDraft.responsibleUnit,
-        deadline: kpiDraft.deadline,
         status: kpiDraft.status,
         updatedBy:
           userRole === 'Strategy Office'
@@ -632,7 +645,6 @@ export function HierarchyView({
         description: actionDraft.description,
         responsibleUnit: actionDraft.responsibleUnit,
         assignedTo: actionDraft.assignedTo,
-        deadline: actionDraft.deadline,
         status: actionDraft.status,
         priority: actionDraft.priority,
         progress: 0,
@@ -693,7 +705,6 @@ export function HierarchyView({
       targetValue: 0,
       currentValue: 0,
       unit: '',
-      deadline: formatDateString(yearDates.endDate),
       status: 'Not Started',
       responsibleUnit: subGoal.responsibleUnit,
       assignedTo: unitOwnerMap.get(subGoal.responsibleUnit) ?? '',
@@ -701,13 +712,11 @@ export function HierarchyView({
   };
 
   const openActionDraft = (subGoal: Goal) => {
-    const yearDates = getAcademicYearDateRange(selectedAcademicYearStart);
     setActionDraft({
       goalId: subGoal.id,
       subgoalName: subGoal.title,
       title: '',
       description: '',
-      deadline: formatDateString(yearDates.endDate),
       status: 'Not Started',
       priority: 'Medium',
       responsibleUnit: subGoal.responsibleUnit,
@@ -1207,7 +1216,7 @@ export function HierarchyView({
 
                     <div className="min-w-0 flex-1">
                       <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs text-purple-700">
+                        <span className="rounded-full bg-purple-100 px-4 py-1.5 text-xs text-purple-700">
                           Main Goal
                         </span>
                         <span className="text-xs text-slate-500">{goal.id}</span>
@@ -1223,17 +1232,17 @@ export function HierarchyView({
 
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${getStatusColor(goal.status)}`}
+                          className={`inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-xs ${getStatusColor(goal.status)}`}
                         >
                           {getStatusIcon(goal.status)}
                           {goal.status}
                         </span>
                         <span
-                          className={`rounded-full px-2.5 py-1 text-xs ${getPriorityColor(goal.priority)}`}
+                          className={`rounded-full px-4 py-1.5 text-xs ${getPriorityColor(goal.priority)}`}
                         >
                           {goal.priority}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                        <span className="rounded-full bg-slate-100 px-4 py-1.5 text-xs text-slate-700">
                           {goal.responsibleUnit}
                         </span>
                         <span className="text-xs text-slate-500">
@@ -1243,13 +1252,13 @@ export function HierarchyView({
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs text-slate-700">
                           {mainGoalCounts.subGoals} Sub Goals
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs text-slate-700">
                           {mainGoalCounts.kpis} KPIs
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs text-slate-700">
                           {mainGoalCounts.actions} Actions
                         </span>
                       </div>
@@ -1364,10 +1373,10 @@ export function HierarchyView({
                                   </div>
 
                                   <div className="mt-4 flex flex-wrap gap-2">
-                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs text-slate-700">
                                       {subGoalCounts.kpis} KPIs
                                     </span>
-                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs text-slate-700">
                                       {subGoalCounts.actions} Actions
                                     </span>
                                   </div>
@@ -1626,30 +1635,19 @@ export function HierarchyView({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">Deadline</label>
-                  <input
-                    type="date"
-                    value={kpiDraft.deadline}
-                    onChange={(e) => setKpiDraft({ ...kpiDraft, deadline: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">Status</label>
-                  <select
-                    value={kpiDraft.status}
-                    onChange={(e) => setKpiDraft({ ...kpiDraft, status: e.target.value as GoalStatus })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="On Track">On Track</option>
-                    <option value="At Risk">At Risk</option>
-                    <option value="Delayed">Delayed</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Not Started">Not Started</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">Status</label>
+                <select
+                  value={kpiDraft.status}
+                  onChange={(e) => setKpiDraft({ ...kpiDraft, status: e.target.value as GoalStatus })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="On Track">On Track</option>
+                  <option value="At Risk">At Risk</option>
+                  <option value="Delayed">Delayed</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Not Started">Not Started</option>
+                </select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1903,20 +1901,10 @@ export function HierarchyView({
                   required
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">Deadline</label>
-                  <input
-                    type="date"
-                    value={actionDraft.deadline}
-                    onChange={(e) => setActionDraft({ ...actionDraft, deadline: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">Status</label>
-                  <select
-                    value={actionDraft.status}
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">Status</label>
+                <select
+                  value={actionDraft.status}
                     onChange={(e) => setActionDraft({ ...actionDraft, status: e.target.value as ActionStatus })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   >
@@ -1926,7 +1914,6 @@ export function HierarchyView({
                     <option value="Blocked">Blocked</option>
                   </select>
                 </div>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-700 mb-2">Priority</label>

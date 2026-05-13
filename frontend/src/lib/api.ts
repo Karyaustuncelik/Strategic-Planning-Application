@@ -2,6 +2,7 @@ import type {
   ActionPlan,
   Assignment,
   AuthOptions,
+  AuthorizedUser,
   AuthSession,
   Goal,
   GoalTreeAssignmentResult,
@@ -9,11 +10,17 @@ import type {
   KpiResultType,
   LoginPayload,
   Milestone,
+  SubmissionLog,
   UnitOwner,
+  UserRole,
 } from '../types';
 
 const API_PREFIX = '/spu/api';
 
+let _authToken: string | null = null;
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
 
 type ApiErrorPayload = {
   error?: string;
@@ -114,7 +121,6 @@ export type CreateKpiPayload = Pick<
   | 'unit'
   | 'academicYearStart'
   | 'responsibleUnit'
-  | 'deadline'
   | 'status'
   | 'updatedBy'
 > & {
@@ -165,7 +171,6 @@ export type CreateActionPlanPayload = Pick<
   | 'description'
   | 'responsibleUnit'
   | 'assignedTo'
-  | 'deadline'
   | 'status'
   | 'priority'
   | 'updatedBy'
@@ -192,8 +197,27 @@ export type UpdateActionPlanPayload = Partial<
     | 'academicYearStart'
     | 'progress'
     | 'notes'
+    | 'lineageKey'
+    | 'resultType'
+    | 'resultValue'
+    | 'resultUpdatedAt'
+    | 'resultUpdatedBy'
+    | 'projectionValues'
+    | 'projectionUpdatedAt'
+    | 'projectionUpdatedBy'
   >
 >;
+
+export type UpdateActionPlanResultPayload = {
+  resultType: KpiResultType;
+  resultValue: string;
+  updatedBy: string;
+};
+
+export type UpdateActionPlanProjectionPayload = {
+  projectionValues: string[];
+  updatedBy: string;
+};
 
 export type CreateMilestonePayload = Pick<
   Milestone,
@@ -251,9 +275,13 @@ export type AssignGoalTreesPayload = {
 };
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const authHeaders: Record<string, string> = _authToken
+    ? { Authorization: `Bearer ${_authToken}` }
+    : {};
   const response = await fetch(path, {
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -469,6 +497,31 @@ export function updateActionPlan(
   });
 }
 
+export function updateActionPlanResult(
+  actionPlanId: string,
+  payload: UpdateActionPlanResultPayload
+) {
+  return updateActionPlan(actionPlanId, {
+    resultType: payload.resultType,
+    resultValue: payload.resultValue,
+    resultUpdatedAt: new Date().toISOString(),
+    resultUpdatedBy: payload.updatedBy,
+    updatedBy: payload.updatedBy,
+  });
+}
+
+export function updateActionPlanProjections(
+  actionPlanId: string,
+  payload: UpdateActionPlanProjectionPayload
+) {
+  return updateActionPlan(actionPlanId, {
+    projectionValues: payload.projectionValues,
+    projectionUpdatedAt: new Date().toISOString(),
+    projectionUpdatedBy: payload.updatedBy,
+    updatedBy: payload.updatedBy,
+  });
+}
+
 export function fetchMilestones(filters: MilestoneFilters = {}) {
   return apiRequest<Milestone[]>(
     `${API_PREFIX}/milestones${buildQuery({
@@ -507,6 +560,38 @@ export function addMilestoneEvidence(
   });
 }
 
+export function extendKPIDeadline(kpiId: string, newDeadline: string, extendedBy: string) {
+  return apiRequest<KPI>(`${API_PREFIX}/kpis/${kpiId}/extend-deadline`, {
+    method: 'POST',
+    body: JSON.stringify({ newDeadline, extendedBy }),
+  });
+}
+
+export function fetchKPIHistory(kpiId: string) {
+  return apiRequest<SubmissionLog[]>(`${API_PREFIX}/kpis/${kpiId}/history`);
+}
+
+export function extendActionPlanDeadline(actionId: string, newDeadline: string, extendedBy: string) {
+  return apiRequest<ActionPlan>(`${API_PREFIX}/actions/${actionId}/extend-deadline`, {
+    method: 'POST',
+    body: JSON.stringify({ newDeadline, extendedBy }),
+  });
+}
+
+export function fetchActionPlanHistory(actionId: string) {
+  return apiRequest<SubmissionLog[]>(`${API_PREFIX}/actions/${actionId}/history`);
+}
+
+export function fetchAllSubmissionLogs(filters: {
+  entityType?: 'kpi' | 'action_plan';
+  goalId?: string;
+  academicYearStart?: number;
+} = {}) {
+  return apiRequest<SubmissionLog[]>(
+    `${API_PREFIX}/submission-logs${buildQuery(filters)}`
+  );
+}
+
 export function deleteGoal(goalId: string) {
   return apiRequest<void>(`${API_PREFIX}/goals/${goalId}`, {
     method: 'DELETE',
@@ -521,6 +606,43 @@ export function deleteKPI(kpiId: string) {
 
 export function deleteActionPlan(actionPlanId: string) {
   return apiRequest<void>(`${API_PREFIX}/actions/${actionPlanId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ─── User Management ──────────────────────────────────────────────────────────
+
+export type CreateUserPayload = {
+  email: string;
+  fullName: string;
+  role: UserRole;
+};
+
+export type UpdateUserPayload = {
+  fullName?: string;
+  role?: UserRole;
+};
+
+export function fetchUsers() {
+  return apiRequest<AuthorizedUser[]>(`${API_PREFIX}/users`);
+}
+
+export function createUser(payload: CreateUserPayload) {
+  return apiRequest<AuthorizedUser>(`${API_PREFIX}/users`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateUser(id: number, payload: UpdateUserPayload) {
+  return apiRequest<AuthorizedUser>(`${API_PREFIX}/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteUser(id: number) {
+  return apiRequest<void>(`${API_PREFIX}/users/${id}`, {
     method: 'DELETE',
   });
 }
