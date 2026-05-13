@@ -80,7 +80,7 @@ export function AdminAuditLogsView({
   if (userRole !== 'Strategy Office') {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
-        <p className="text-gray-500">You do not have permission to view this page.</p>
+        <p className="text-gray-500">{t('You do not have permission to view this page.')}</p>
       </div>
     );
   }

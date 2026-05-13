@@ -25,9 +25,7 @@ import {
   updateKpiProjections,
   updateActionPlanResult,
   updateActionPlanProjections,
-  extendKPIDeadline,
   fetchKPIHistory,
-  extendActionPlanDeadline,
   fetchActionPlanHistory,
 } from '../lib/api';
 import { useI18n } from '../i18n';
@@ -37,6 +35,7 @@ interface GoalDetailProps {
   goalId: string;
   userRole: UserRole;
   userUnit?: string;
+  userName?: string;
   onBack: () => void;
   isReadOnly: boolean;
 }
@@ -45,6 +44,7 @@ export function GoalDetail({
   goalId,
   userRole,
   userUnit,
+  userName,
   onBack,
   isReadOnly,
 }: GoalDetailProps) {
@@ -274,7 +274,7 @@ export function GoalDetail({
     setKpiFormSaving(true);
     setKpiFormError(null);
     try {
-      const updatedBy = userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${kpi.responsibleUnit} Manager`;
+      const updatedBy = userName ?? (userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${kpi.responsibleUnit} Manager`);
       const updated = await updateKpiResult(kpi.id, {
         resultType: resultFormType,
         resultValue: resultFormValue.trim(),
@@ -293,7 +293,7 @@ export function GoalDetail({
     setKpiFormSaving(true);
     setKpiFormError(null);
     try {
-      const updatedBy = userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${kpi.responsibleUnit} Manager`;
+      const updatedBy = userName ?? (userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${kpi.responsibleUnit} Manager`);
       const updated = await updateKpiProjections(kpi.id, {
         projectionValues: projectionFormValues,
         updatedBy,
@@ -354,7 +354,7 @@ export function GoalDetail({
     setActionFormSaving(true);
     setActionFormError(null);
     try {
-      const updatedBy = userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${action.responsibleUnit} Manager`;
+      const updatedBy = userName ?? (userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${action.responsibleUnit} Manager`);
       const updated = await updateActionPlanResult(action.id, {
         resultType: actionResultFormType,
         resultValue: actionResultFormValue.trim(),
@@ -373,7 +373,7 @@ export function GoalDetail({
     setActionFormSaving(true);
     setActionFormError(null);
     try {
-      const updatedBy = userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${action.responsibleUnit} Manager`;
+      const updatedBy = userName ?? (userRole === 'Strategy Office' ? 'Strategy Office Admin' : `${action.responsibleUnit} Manager`);
       const updated = await updateActionPlanProjections(action.id, {
         projectionValues: actionProjectionFormValues,
         updatedBy,
@@ -828,7 +828,8 @@ export function GoalDetail({
                   const canEditKpi =
                     !isReadOnly &&
                     (userRole === 'Strategy Office' ||
-                      (userRole === 'Unit Manager' && kpi.responsibleUnit === userUnit));
+                      (userRole === 'Unit Manager' && kpi.responsibleUnit === userUnit) ||
+                      (userName != null && kpi.assignedTo === userName));
                   const isResultOpen = activeResultKpiId === kpi.id;
                   const isProjectionOpen = activeProjectionKpiId === kpi.id;
                   const isHistoryOpen = historyKpiId === kpi.id;
@@ -1114,7 +1115,8 @@ export function GoalDetail({
                   const canEditAction =
                     !isReadOnly &&
                     (isAdminRole(userRole) ||
-                      (userRole === 'Unit Manager' && action.responsibleUnit === userUnit));
+                      (userRole === 'Unit Manager' && action.responsibleUnit === userUnit) ||
+                      (userName != null && action.assignedTo === userName));
                   const isResultOpen = activeResultActionId === action.id;
                   const isProjectionOpen = activeProjectionActionId === action.id;
                   const isHistoryOpen = historyActionId === action.id;
