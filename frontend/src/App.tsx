@@ -561,6 +561,7 @@ export default function App() {
                 goalId={selectedGoalId}
                 userRole={currentUser.role}
                 userUnit={currentUser.unit}
+                userName={currentUser.name}
                 onBack={() => setCurrentView(previousView)}
                 isReadOnly={isReadOnly}
               />

@@ -521,7 +521,7 @@ export function MilestoneManagement({
 
       {showDetailDrawer && selectedMilestone && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-          <div className="fixed right-0 top-0 bottom-0 w-full md:w-2/3 lg:w-1/2 bg-white shadow-xl overflow-y-auto">
+          <div className="fixed right-0 top-0 bottom-0 w-full bg-white shadow-xl overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
               <h3>{selectedMilestone.title}</h3>
               <button
