@@ -1761,6 +1761,8 @@ export async function upsertSpuUser(username, role) {
      ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role`,
     [username, role]
   );
+}
+
 // ─── Authorized Users ─────────────────────────────────────────────────────────
 
 const VALID_ROLES = new Set(['Strategy Office', 'Unit Manager', 'Senior Management', 'Viewer']);

@@ -180,6 +180,8 @@ async function handleSamlUser(user, res) {
     path: '/',
   });
   return res.redirect(303, CLIENT_URL + '/');
+}
+
 function requireAdmin(req, res, next) {
   const authHeader = req.headers.authorization ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -236,39 +238,6 @@ app.post(
     })(req, res, next);
   }
 );
-async function handleSamlCallback(req, res, next) {
-  passport.authenticate('saml', { session: false }, async (err, user) => {
-    if (err || !user) {
-      console.error('SAML Authentication error:', err);
-      return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
-    }
-    try {
-      const authorizedUser = await getAuthorizedUserByEmail(user.email);
-      if (!authorizedUser) {
-        console.warn(`SSO login rejected — not in authorized_users: ${user.email}`);
-        return res.redirect(303, `${CLIENT_URL}/?sso_error=unauthorized`);
-      }
-      const token = generateJwt({ email: user.email, name: authorizedUser.fullName || user.name, role: authorizedUser.role });
-      res.cookie('spu_sso_token', token, {
-        httpOnly: false,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 1000,
-        path: '/'
-      });
-      return res.redirect(303, CLIENT_URL + '/');
-    } catch (dbErr) {
-      console.error('SSO DB lookup error:', dbErr);
-      return res.redirect(303, `${CLIENT_URL}/login?error=sso_failed`);
-    }
-  })(req, res, next);
-}
-
-// 2. Local dev callback
-app.post('/api/auth/saml/callback', handleSamlCallback);
-
-// 3. Production callback
-app.post('/api/auth/saml/module.php/saml/sp/saml2-acs.php/default-sp', handleSamlCallback);
 // ──────────────────────────────────────────────────────────────────────────────
 
 app.use((req, res, next) => {
@@ -284,7 +253,7 @@ app.use((req, res, next) => {
     res.header('Vary', 'Origin');
   }
 
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
 
   if (req.method === 'OPTIONS') {

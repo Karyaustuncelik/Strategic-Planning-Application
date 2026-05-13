@@ -30,7 +30,6 @@ import { AdminAuditLogsView } from './components/AdminAuditLogsView';
 import { UserManagementView } from './components/UserManagementView';
 import { UnauthorizedView } from './components/UnauthorizedView';
 import { setAuthToken } from './lib/api';
-import { Login } from './components/Login';
 import {
   Select,
   SelectContent,
