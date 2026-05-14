@@ -402,7 +402,7 @@ export default function App() {
               Sabanci hesabınız bu uygulamaya kayıtlı değil. Sistem yöneticisiyle iletişime geçin.
             </p>
             <a
-              href="/api/auth/saml/login"
+              href={`${import.meta.env.BASE_URL}api/auth/saml/login`}
               className="inline-flex items-center gap-2 rounded-xl bg-[#15345c] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#1a3f70] transition-colors"
             >
               Farklı hesapla dene
@@ -420,7 +420,7 @@ export default function App() {
             <h1 className="text-lg font-semibold text-slate-900 mb-2">Giriş Başarısız</h1>
             <p className="text-sm text-slate-500 mb-5">SSO bağlantısı sırasında bir hata oluştu.</p>
             <a
-              href="/api/auth/saml/login"
+              href={`${import.meta.env.BASE_URL}api/auth/saml/login`}
               className="inline-flex items-center gap-2 rounded-xl bg-[#15345c] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#1a3f70] transition-colors"
             >
               Tekrar dene
@@ -431,7 +431,7 @@ export default function App() {
     }
 
     // No session → redirect to Sabanci SSO
-    window.location.href = '/api/auth/saml/login';
+    window.location.href = `${import.meta.env.BASE_URL}api/auth/saml/login`;
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f4f8fc]">
         <p className="text-sm text-slate-500">Sabanci SSO'ya yönlendiriliyor…</p>
