@@ -162,15 +162,14 @@ function usernameFromEmail(email = '') {
 
 async function handleSamlUser(user, res) {
   const email = user.email || user.nameID || '';
-  const username = usernameFromEmail(email);
-  const dbUser = await getUserByUsername(username);
+  const dbUser = await getAuthorizedUserByEmail(email);
 
   if (!dbUser) {
-    console.warn(`SSO login denied for unknown user: ${username}`);
+    console.warn(`SSO login denied for unknown user: ${email}`);
     return res.redirect(303, `${CLIENT_URL}/?error=unauthorized`);
   }
 
-  const appRole = dbRoleToAppRole(dbUser.role);
+  const appRole = dbUser.role;
   const token = generateJwt({ email, name: user.name || email }, appRole);
   res.cookie('spu_sso_token', token, {
     httpOnly: false,
