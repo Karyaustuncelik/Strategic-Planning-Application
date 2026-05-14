@@ -144,7 +144,7 @@ passport.deserializeUser((user, done) => done(null, user));
 
 function generateJwt(user, role = 'Strategy Office') {
   return jwt.sign(
-    { email: user.email, name: user.name, role: user.role ?? 'Viewer' },
+    { email: user.email, name: user.name, role: user.role ?? role },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
